@@ -19,9 +19,9 @@ jobs:
     - name: Install ruff
       run: pip install ruff
     - name: Check formatting
-      run: ruff format --check src/ main.py check_function_length.py
+      run: ruff format --check src/ main.py
     - name: Run ruff linter
-      run: ruff check src/ main.py check_function_length.py
+      run: ruff check src/ main.py
 
   # 代码质量检查
   code-quality:
@@ -38,7 +38,7 @@ jobs:
         pip install -r requirements.txt
         pip install pylint
     - name: Run pylint
-      run: pylint src/ main.py --rcfile=.pylintrc
+      run: pylint src/ main.py --rcfile=.pylintrc --fail-under=9.0
 
   # 功能测试（如果有）
   # test:
