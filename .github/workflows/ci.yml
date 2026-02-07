@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  # 代码格式检查
+  code-format:
+    name: 代码格式检查 (Ruff)
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+    - name: Install ruff
+      run: pip install ruff
+    - name: Check formatting
+      run: ruff format --check src/ main.py check_function_length.py
+    - name: Run ruff linter
+      run: ruff check src/ main.py check_function_length.py
+
+  # 代码质量检查
+  code-quality:
+    name: 代码质量检查 (Pylint)
+    runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+        cache: 'pip'
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+        pip install pylint
+    - name: Run pylint
+      run: pylint src/ main.py --rcfile=.pylintrc
+
+  # 功能测试（如果有）
+  # test:
+  #   name: 单元测试
+  #   runs-on: ubuntu-22.04
+  #   steps:
+  #   - uses: actions/checkout@v4
+  #   - uses: actions/setup-python@v5
+  #     with:
+  #       python-version: "3.10"
+  #       cache: 'pip'
+  #   - name: Install dependencies
+  #     run: pip install -r requirements.txt
+  #   - name: Run tests
+  #     run: pytest tests/
