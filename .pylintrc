@@ -1,0 +1,41 @@
+[MAIN]
+# 指定要检查的文件和目录
+# py-version = 3.11
+
+[MESSAGES CONTROL]
+# 禁用某些检查（可选）
+disable=
+    C0114,  # missing-module-docstring
+    C0115,  # missing-class-docstring
+
+[FORMAT]
+# 每行最大字符数
+max-line-length=100
+
+[DESIGN]
+# 函数/方法的最大语句数（间接限制函数长度）
+# 通常 50 行代码约等于 30-35 条语句
+max-statements=35
+
+# 函数/方法的最大参数数
+max-args=5
+
+# 函数/方法的最大局部变量数
+max-locals=15
+
+# 函数/方法的最大分支数
+max-branches=12
+
+# 函数/方法的最大返回语句数
+max-returns=6
+
+[BASIC]
+# 好的变量名模式
+good-names=i,j,k,ex,Run,_,f,e
+
+[REPORTS]
+# 输出格式
+output-format=colorized
+
+# 显示评分
+score=yes

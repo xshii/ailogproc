@@ -1,0 +1,26 @@
+# 自动文件名插件配置
+
+enable: true
+
+fields: [systemMode, controlMode, debugLevel, verboseLevel]
+
+value_mapping:
+  # --- 模式类映射（多个字段共享） ---
+  systemMode: &mode_map
+    '1': &auto auto
+    '0x01': *auto
+    '2': &manual manual
+    '0x02': *manual
+  controlMode: *mode_map          # 完全复用 systemMode 的映射
+
+  # --- 级别类映射（多个字段共享） ---
+  debugLevel: &level_map
+    '1': &low low
+    '0x01': *low
+    '2': &high high
+    '0x02': *high
+    '3': &full full
+    '0x03': *full
+  verboseLevel: *level_map        # 完全复用 debugLevel 的映射
+
+default_value: null

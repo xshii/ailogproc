@@ -1,0 +1,17 @@
+# 配置提取插件配置
+
+enable: true
+
+# 日志解析正则表达式
+log_patterns:
+  field: '\|-\s+(\S+)\s*=\s*(.+)$'
+  section: '^thread\d+\s+cyc=0x[0-9a-fA-F]+\s+([^|].+)$'
+
+# 字段名映射（日志字段名 -> 标准字段名）
+field_name_mapping:
+  cfg_group: cfgGroup
+  pwr_level: powerLevel
+
+# 值提取配置
+value_extraction:
+  extract_parentheses: true  # 是否提取括号中的内容
