@@ -1,0 +1,31 @@
+thread0	cyc=0x1000 opSch
+thread0	cyc=0x1000 |- systemMode    = 1  (0x01)
+thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
+
+thread0	cyc=0x2000 ERCfg (grp = 0)
+thread0	cyc=0x2000 |- cfgGroup    = 0  (0x00)
+thread0	cyc=0x2000 |- powerLevel  = 15  (0x0F)
+
+thread0	cyc=0x3000 TXCfg (grp = 0)
+thread0	cyc=0x3000 |- cfgGroup    = 0  (0x00)
+thread0	cyc=0x3000 |- txPower     = 30  (0x1E)
+
+thread0	cyc=0x5aa2 opSch
+thread0	cyc=0x5aa2 |- systemMode    = 2  (0x02)
+thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
+
+thread0	cyc=0x6000 ERCfg (grp = 0)
+thread0	cyc=0x6000 |- cfgGroup    = 0  (0x00)
+thread0	cyc=0x6000 |- powerLevel  = 20  (0x14)
+
+thread0	cyc=0x7000 ERCfg (grp = 1)
+thread0	cyc=0x7000 |- cfgGroup    = 1  (0x01)
+thread0	cyc=0x7000 |- powerLevel  = 25  (0x19)
+
+thread0	cyc=0x8aa2 opSch
+thread0	cyc=0x8aa2 |- systemMode    = 1  (0x01)
+thread0	cyc=0x8aa2 |- debugLevel    = 1  (0x01)
+
+thread0	cyc=0x9000 TXCfg (grp = 0)
+thread0	cyc=0x9000 |- cfgGroup    = 0  (0x00)
+thread0	cyc=0x9000 |- txPower     = 40  (0x28)
