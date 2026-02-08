@@ -79,17 +79,20 @@ class CfgLimitCommand(Command):
 
             # 显示结果
             if result.get("validation_passed"):
-                info(f"✓ 配置通过所有约束检查 (版本: {result.get('version', 'unknown')})")
+                info(
+                    f"✓ 配置通过所有约束检查 (版本: {result.get('version', 'unknown')})"
+                )
                 return 0
-            else:
-                violations = result.get("violations", [])
-                error(f"✗ 发现 {len(violations)} 个约束违规")
-                for v in violations:
-                    error(f"  - {v.get('type')}: {v.get('message')}")
-                return 1
+
+            violations = result.get("violations", [])
+            error(f"✗ 发现 {len(violations)} 个约束违规")
+            for v in violations:
+                error(f"  - {v.get('type')}: {v.get('message')}")
+            return 1
 
         except Exception as e:
             error(f"约束检查失败: {e}")
             import traceback
+
             traceback.print_exc()
             return 1

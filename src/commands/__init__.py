@@ -13,13 +13,13 @@ class Command(ABC):
     @abstractmethod
     def name(self) -> str:
         """命令名称"""
-        pass
+        ...
 
     @property
     @abstractmethod
     def help(self) -> str:
         """命令帮助信息"""
-        pass
+        ...
 
     @abstractmethod
     def register_arguments(self, parser: argparse.ArgumentParser) -> None:
@@ -28,7 +28,7 @@ class Command(ABC):
         Args:
             parser: 该命令的子解析器
         """
-        pass
+        ...
 
     @abstractmethod
     def execute(self, args: argparse.Namespace) -> int:
@@ -40,7 +40,7 @@ class Command(ABC):
         Returns:
             退出码 (0 表示成功)
         """
-        pass
+        ...
 
 
 # 命令注册表

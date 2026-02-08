@@ -107,7 +107,9 @@ class PerfAnalyzerPlugin(Plugin):
             "p50_cycles": durations_sorted[int(n * 0.50)],
             "p90_cycles": durations_sorted[int(n * 0.90)],
             "p95_cycles": durations_sorted[int(n * 0.95)],
-            "p99_cycles": durations_sorted[int(n * 0.99)] if n >= 100 else durations_sorted[-1],
+            "p99_cycles": durations_sorted[int(n * 0.99)]
+            if n >= 100
+            else durations_sorted[-1],
         }
 
         # 如果配置了频率，也计算以时间为单位的统计

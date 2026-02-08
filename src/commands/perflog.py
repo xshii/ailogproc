@@ -116,7 +116,9 @@ class PerfLogCommand(Command):
             if len(by_source) > 1:
                 info("  来源对比:")
                 for source, stats in by_source.items():
-                    info(f"    {source}: {stats['mean_cycles']:.0f} cycles (count={stats['count']})")
+                    info(
+                        f"    {source}: {stats['mean_cycles']:.0f} cycles (count={stats['count']})"
+                    )
 
             # 3. 可视化
             if not args.no_viz:
@@ -124,7 +126,9 @@ class PerfLogCommand(Command):
                 visualizer = PerfVisualizerPlugin()
 
                 if args.timeline:
-                    visualizer.config.setdefault("gantt", {})["output_path"] = args.timeline
+                    visualizer.config.setdefault("gantt", {})["output_path"] = (
+                        args.timeline
+                    )
                 viz_result = visualizer.execute(context)
 
                 timeline_path = viz_result.get("timeline_path")
@@ -149,5 +153,6 @@ class PerfLogCommand(Command):
         except Exception as e:
             error(f"性能分析失败: {e}")
             import traceback
+
             traceback.print_exc()
             return 1

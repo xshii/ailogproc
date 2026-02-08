@@ -90,6 +90,7 @@ def main():
     except Exception as e:
         info(f"错误: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
 

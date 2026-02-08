@@ -12,6 +12,7 @@ from pathlib import Path
 # 可选依赖
 try:
     import requests
+
     HAS_REQUESTS = True
 except ImportError:
     HAS_REQUESTS = False

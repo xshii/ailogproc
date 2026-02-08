@@ -54,9 +54,7 @@ class PerfVisualizerPlugin(Plugin):
 
         return {"charts": charts, "timeline_path": timeline_path}
 
-    def _generate_operator_timeline(
-        self, pairs: List[Dict], context: dict
-    ) -> str:
+    def _generate_operator_timeline(self, pairs: List[Dict], context: dict) -> str:
         """生成算子执行时间线（类似升腾Studio效果）"""
         try:
             # 检查依赖
@@ -112,8 +110,12 @@ class PerfVisualizerPlugin(Plugin):
             end_fields = end_event.get("fields", {})
 
             # 尝试找到 cycle 字段（可能是 cycle_start, start_cycle, begin_cycle 等）
-            start_cycle = self._extract_cycle_value(start_fields, ["cycle_start", "start_cycle", "begin_cycle"])
-            end_cycle = self._extract_cycle_value(end_fields, ["cycle_end", "end_cycle", "done_cycle"])
+            start_cycle = self._extract_cycle_value(
+                start_fields, ["cycle_start", "start_cycle", "begin_cycle"]
+            )
+            end_cycle = self._extract_cycle_value(
+                end_fields, ["cycle_end", "end_cycle", "done_cycle"]
+            )
 
             # 如果没有cycle信息，跳过
             if start_cycle is None or end_cycle is None:
@@ -142,7 +144,9 @@ class PerfVisualizerPlugin(Plugin):
 
         return timeline_data
 
-    def _extract_cycle_value(self, fields: dict, possible_names: List[str]) -> Optional[int]:
+    def _extract_cycle_value(
+        self, fields: dict, possible_names: List[str]
+    ) -> Optional[int]:
         """从字段中提取cycle值（尝试多个可能的字段名）"""
         for name in possible_names:
             if name in fields:
@@ -166,12 +170,16 @@ class PerfVisualizerPlugin(Plugin):
 
         # 准备颜色映射（按单元 + 来源）
         colors = self._get_color_scheme(len(units))
-        unit_colors = {unit: colors[idx % len(colors)] for idx, unit in enumerate(units)}
+        unit_colors = {
+            unit: colors[idx % len(colors)] for idx, unit in enumerate(units)
+        }
 
         # 为不同来源分配不同的透明度或色调
         source_opacity = {}
         for idx, source in enumerate(sources):
-            source_opacity[source] = 1.0 - (idx * 0.3)  # 第一个来源 1.0，第二个 0.7，等等
+            source_opacity[source] = 1.0 - (
+                idx * 0.3
+            )  # 第一个来源 1.0，第二个 0.7，等等
 
         # 创建图表
         fig = go.Figure()

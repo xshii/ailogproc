@@ -62,7 +62,9 @@ class PerfParserPlugin(Plugin):
 
             # 对未匹配的事件打印告警并记录日志
             if unpaired:
-                warning(f"[性能日志解析] [{source_label}] {len(unpaired)} 个事件未找到配对")
+                warning(
+                    f"[性能日志解析] [{source_label}] {len(unpaired)} 个事件未找到配对"
+                )
                 for event in unpaired:
                     warning(
                         f"  - 未配对: {event['event_type']} 事件，"
@@ -75,7 +77,9 @@ class PerfParserPlugin(Plugin):
                 self._log_unpaired_events(unpaired, log_path, source_label)
 
             # 统计信息
-            source_stats = self._compute_source_statistics(len(events), pairs, len(unpaired))
+            source_stats = self._compute_source_statistics(
+                len(events), pairs, len(unpaired)
+            )
             all_stats_by_source[source_label] = source_stats
 
             # 累加
@@ -122,11 +126,11 @@ class PerfParserPlugin(Plugin):
                     sources.append((item.get("label", "unknown"), item.get("path")))
                 else:
                     # 简化模式，使用文件名作为 label
-                    label = os.path.basename(item).split('.')[0]
+                    label = os.path.basename(item).split(".")[0]
                     sources.append((label, item))
         elif ctx_file:
             # 单文件模式（向后兼容）
-            label = os.path.basename(ctx_file).split('.')[0]
+            label = os.path.basename(ctx_file).split(".")[0]
             sources.append((label, ctx_file))
         else:
             # 从配置读取
@@ -138,7 +142,7 @@ class PerfParserPlugin(Plugin):
                         if path:
                             sources.append((item.get("label", "unknown"), path))
                     elif isinstance(item, str):
-                        label = os.path.basename(item).split('.')[0]
+                        label = os.path.basename(item).split(".")[0]
                         sources.append((label, item))
 
         return sources
@@ -176,9 +180,7 @@ class PerfParserPlugin(Plugin):
                             break  # 一行只匹配一个规则
 
                         # 尝试匹配结束模式
-                        end_event = self._try_match_pattern(
-                            line, line_num, rule, "end"
-                        )
+                        end_event = self._try_match_pattern(line, line_num, rule, "end")
                         if end_event:
                             events.append(end_event)
                             break
@@ -293,7 +295,11 @@ class PerfParserPlugin(Plugin):
 
             # 配对该规则的开始和结束事件
             rule_pairs, rule_unpaired = self._pair_events(
-                rule_events["starts"], rule_events["ends"], match_fields, rule, source_label
+                rule_events["starts"],
+                rule_events["ends"],
+                match_fields,
+                rule,
+                source_label,
             )
 
             pairs.extend(rule_pairs)
@@ -487,7 +493,9 @@ class PerfParserPlugin(Plugin):
                     f.write(f"[{idx}] {event['event_type'].upper()} 事件\n")
                     f.write(f"    规则: {event['rule_name']}\n")
                     f.write(f"    行号: {event['line_number']}\n")
-                    f.write(f"    字段: {json.dumps(event['fields'], ensure_ascii=False, indent=6)}\n")
+                    f.write(
+                        f"    字段: {json.dumps(event['fields'], ensure_ascii=False, indent=6)}\n"
+                    )
                     f.write("\n")
 
             info(f"[性能日志解析] 未配对事件已记录到: {log_path}")

@@ -68,5 +68,6 @@ class Cfg2ExcelCommand(Command):
         except Exception as e:
             error(f"配置导出失败: {e}")
             import traceback
+
             traceback.print_exc()
             return 1
