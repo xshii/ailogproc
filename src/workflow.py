@@ -3,6 +3,7 @@
 """
 
 from src.plugins import load_plugins, run_plugins
+from src.utils import info, warning
 
 
 def process_log_to_excel(excel_file, trace_file, output_file=None, sheet_name=None):

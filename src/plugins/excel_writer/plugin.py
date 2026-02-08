@@ -12,7 +12,7 @@ from src.plugins.base import Plugin
 from src.plugins.excel_writer.processor import ExcelProcessor
 
 
-from src.utils import info, error
+from src.utils import info, error, warning
 
 
 class ExcelWriterPlugin(Plugin):
