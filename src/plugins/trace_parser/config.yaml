@@ -1,0 +1,32 @@
+# Trace解析插件配置
+
+enable: true
+
+# 默认trace文件配置（可选）
+default_trace:
+  # 默认trace文件路径（null 表示必须从 context 传入）
+  path: null
+  # 是否自动查找最新trace文件（当 path 是目录时）
+  auto_find_latest: true
+  # 搜索目录列表（按优先级查找，找到即停止）
+  search_dirs:
+    - 'logs'                  # 优先: 工作目录的 logs/
+    - 'examples/logs'         # 回退: 示例日志
+  # trace文件匹配模式列表（按优先级查找）
+  file_patterns:
+    - 'trace_*.txt'           # 优先: trace_*.txt
+    - '*.txt'                 # 回退: 任意 .txt 文件
+
+# Trace解析正则表达式
+log_patterns:
+  field: '\|-\s+(\S+)\s*=\s*(.+)$'
+  section: '^thread\d+\s+cyc=0x[0-9a-fA-F]+\s+([^|].+)$'
+
+# 字段名映射（日志字段名 -> 标准字段名）
+field_name_mapping:
+  cfg_group: cfgGroup
+  pwr_level: powerLevel
+
+# 值提取配置
+value_extraction:
+  extract_parentheses: true  # 是否提取括号中的内容

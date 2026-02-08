@@ -2,6 +2,24 @@
 工具模块
 """
 
-from src.utils.log_utils import find_latest_log, cleanup_old_logs, validate_log_file
+from src.utils.logger import (
+    setup_logger,
+    get_logger,
+    debug,
+    info,
+    warning,
+    error,
+    critical,
+    exception,
+)
 
-__all__ = ["find_latest_log", "cleanup_old_logs", "validate_log_file"]
+__all__ = [
+    "setup_logger",
+    "get_logger",
+    "debug",
+    "info",
+    "warning",
+    "error",
+    "critical",
+    "exception",
+]

@@ -1,0 +1,53 @@
+# Coverage.py 配置文件
+# https://coverage.readthedocs.io/
+
+[run]
+# 指定要测量的源代码目录
+source = src
+
+# 排除的文件或目录
+omit =
+    */tests/*
+    */venv/*
+    */__pycache__/*
+    */site-packages/*
+    setup.py
+
+# 是否包含分支覆盖率
+branch = True
+
+[report]
+# 报告中排除的行（通过注释标记）
+exclude_lines =
+    # 标准排除
+    pragma: no cover
+    def __repr__
+    raise AssertionError
+    raise NotImplementedError
+
+    # 调试代码
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    @abstractmethod
+
+    # 防御性编程
+    except ImportError:
+    except Exception:
+    pass
+
+# 精确度（小数点后位数）
+precision = 2
+
+# 是否显示缺失的行号
+show_missing = True
+
+# 跳过空文件
+skip_empty = True
+
+[html]
+# HTML 报告输出目录
+directory = htmlcov
+
+[xml]
+# XML 报告输出文件
+output = coverage.xml

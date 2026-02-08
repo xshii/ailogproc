@@ -2,14 +2,17 @@
 插件注册表和调度器
 """
 
-from src.plugins.config_extractor import ConfigExtractorPlugin
+from src.plugins.dld_tmp import DownloadTemplatePlugin
+from src.plugins.trace_parser import TraceParserPlugin
 from src.plugins.excel_writer import ExcelWriterPlugin
 from src.plugins.auto_filename import AutoFilenamePlugin
 
 
+from src.utils import info, warning, error, debug
 # 插件注册表
 PLUGIN_REGISTRY = {
-    "config_extractor": ConfigExtractorPlugin,
+    "dld_tmp": DownloadTemplatePlugin,
+    "trace_parser": TraceParserPlugin,
     "excel_writer": ExcelWriterPlugin,
     "auto_filename": AutoFilenamePlugin,
 }
@@ -34,8 +37,7 @@ def load_plugins() -> tuple:
                 plugins.append(plugin)
                 plugin_configs[key] = plugin.config  # 保存配置
         except Exception as e:
-            print(f"  ⚠️  加载插件 '{key}' 失败: {e}")
-
+            error(f"  ⚠️  加载插件 '{key}' 失败: {e}")
     # 按 level 排序：Level 1 (Extractor) -> Level 2 (Processor) -> Level 3 (小插件)
     plugins.sort(key=lambda p: p.level)
 
@@ -61,25 +63,20 @@ def run_plugins(plugins: list, plugin_configs: dict, initial_context: dict) -> d
 
 def _print_plugin_header():
     """打印插件执行头部"""
-    print("\n" + "=" * 60)
-    print("开始执行插件")
-    print("=" * 60)
-
-
+    info("\n" + "=" * 60)
+    info("开始执行插件")
+    info("=" * 60)
 def _print_plugin_footer():
     """打印插件执行尾部"""
-    print("\n" + "=" * 60)
-    print("插件执行完成")
-    print("=" * 60)
-
-
+    info("\n" + "=" * 60)
+    info("插件执行完成")
+    info("=" * 60)
 def _execute_single_plugin(plugin, context):
     """执行单个插件"""
     plugin_key = _get_plugin_key(plugin)
-    print(f"\n[Level {plugin.level}] 执行插件: {plugin_key}")
-
+    info(f"\n[Level {plugin.level}] 执行插件: {plugin_key}")
     if not _check_dependencies(plugin, context):
-        print("  ⚠️  跳过: 依赖未满足")
+        warning("  ⚠️  跳过: 依赖未满足")
         return
 
     try:
@@ -87,12 +84,11 @@ def _execute_single_plugin(plugin, context):
 
         if result:
             context[plugin_key] = result
-            print("  ✓ 完成")
+            info("  ✓ 完成")
         else:
-            print("  ✓ 完成（无输出）")
-
+            info("  ✓ 完成（无输出）")
     except Exception as e:
-        print(f"  ❌ 失败: {e}")
+        error(f"  ❌ 失败: {e}")
         import traceback
 
         traceback.print_exc()

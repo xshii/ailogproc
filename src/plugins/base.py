@@ -62,16 +62,15 @@ class Plugin(ABC):
         Args:
             context: 包含所有上游插件输出的字典
                     例如: {
-                        'log_file': '/path/to/log.txt',
+                        'trace_file': '/path/to/trace.txt',
                         'excel_file': '/path/to/template.xlsx',
-                        'config_extractor': {'sections': [...], ...},
+                        'trace_parser': {'sections': [...], ...},
                         'excel_writer': {'output_file': '/path/to/output.xlsx', ...},
                     }
 
         Returns:
             dict: 当前插件的输出，会被合并到 context 中
         """
-        pass
 
     @property
     def name(self) -> str:
@@ -93,7 +92,7 @@ def get_target_column(config: dict) -> int:
     Returns:
         int: 列号（从1开始）
     """
-    target_column = config.get("target_column", 5)
+    target_column = config.get("target_column", "F")
 
     if isinstance(target_column, int):
         return target_column

@@ -1,0 +1,49 @@
+# 模板下载插件配置
+
+enable: true
+
+# 是否启用下载功能（false 则只使用本地模板）
+download_enabled: false
+
+# 模板存储配置
+storage:
+  # 模板存储根目录
+  templates_dir: 'templates'
+  # 备份目录
+  backup_dir: 'templates/backups'
+  # manifest 文件路径
+  manifest_file: 'templates/manifest.json'
+  # 搜索目录列表（按优先级查找本地模板）
+  search_dirs:
+    - 'templates'           # 优先: 工作目录的 templates/
+    - 'examples/templates'  # 回退: 示例模板
+
+# API 配置
+api:
+  # 模板下载 API 地址
+  url: 'https://example.com/api/templates/latest'
+  # 超时时间（秒）
+  timeout: 30
+  # HTTP Headers（可选）
+  headers:
+    User-Agent: 'ailogproc/1.0'
+  # 认证配置（可选）
+  # auth:
+  #   type: 'bearer'  # bearer 或 basic
+  #   token: 'your-api-token'
+
+# 版本管理
+version:
+  # 是否检查版本更新
+  check_updates: true
+  # 保留的备份数量
+  max_backups: 5
+
+# 模板验证
+validation:
+  # 是否验证文件 hash
+  verify_hash: true
+  # 是否验证文件格式
+  verify_format: true
+  # 允许的文件扩展名
+  allowed_extensions: ['.xlsx', '.xlsm']

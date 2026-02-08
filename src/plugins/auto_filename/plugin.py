@@ -7,6 +7,7 @@ import os
 from src.plugins.base import Plugin, get_target_column
 
 
+from src.utils import info, warning
 class AutoFilenamePlugin(Plugin):
     """自动文件名小插件 - Level 3"""
 
@@ -15,8 +16,7 @@ class AutoFilenamePlugin(Plugin):
 
     def execute(self, context: dict) -> dict:
         """根据顶格表格的字段值自动生成文件名后缀"""
-        print("\n  生成自动文件名...")
-
+        info("\n  生成自动文件名...")
         validation = self._validate_prerequisites(context)
         if not validation:
             return {}
@@ -28,12 +28,17 @@ class AutoFilenamePlugin(Plugin):
         )
 
         if not field_values:
-            print("  ⚠️  未提取到任何字段值，使用原文件名")
+            warning("  ⚠️  未提取到任何字段值，使用原文件名")
             return {}
 
         new_filename = self._generate_new_filename(output_file, field_values)
-        print(f"  ✓ 新文件名: {os.path.basename(new_filename)}")
-
+        info(f"  ✓ 新文件名: {os.path.basename(new_filename)}")
+        # 实际重命名文件
+        if os.path.exists(output_file):
+            os.rename(output_file, new_filename)
+            info("  ✓ 文件已重命名")
+        else:
+            warning("  ⚠️  原文件不存在，无法重命名")
         return {"output_file": new_filename}
 
     def _validate_prerequisites(self, context):
@@ -47,19 +52,19 @@ class AutoFilenamePlugin(Plugin):
 
         fields = self.config.get("fields", [])
         if not fields:
-            print("  ⚠️  未配置fields，使用原文件名")
+            warning("  ⚠️  未配置fields，使用原文件名")
             return None
 
         excel_writer_config = context.get("excel_writer_config", {})
         enable_top_table = excel_writer_config.get("top_table", {}).get("enable", True)
 
         if not enable_top_table:
-            print("  ⚠️  顶格表格未启用，使用原文件名")
+            warning("  ⚠️  顶格表格未启用，使用原文件名")
             return None
 
         top_start, top_end = processor.find_top_table()
         if not top_start:
-            print("  ⚠️  未找到顶格表格，使用原文件名")
+            warning("  ⚠️  未找到顶格表格，使用原文件名")
             return None
 
         return output_file, processor, excel_writer_config, top_start, top_end
@@ -87,7 +92,7 @@ class AutoFilenamePlugin(Plugin):
             )
 
             if field_value is None:
-                print(f"  ⚠️  字段 '{field_name}' 未找到或无值，跳过")
+                warning(f"  ⚠️  字段 '{field_name}' 未找到或无值，跳过")
                 continue
 
             mapped_value = self._apply_value_mapping(
@@ -131,7 +136,7 @@ class AutoFilenamePlugin(Plugin):
             field_mapping = value_mapping[field_name]
             if field_value_str in field_mapping:
                 mapped_value = field_mapping[field_value_str]
-                print(f"  ✓ {field_name}: {field_value_str} → {mapped_value}")
+                info(f"  ✓ {field_name}: {field_value_str} → {mapped_value}")
                 return mapped_value
 
             if default_value:
@@ -140,10 +145,10 @@ class AutoFilenamePlugin(Plugin):
                 )
                 return default_value
 
-            print(f"  ⚠️  {field_name}: {field_value_str} (未映射，使用原值)")
+            warning(f"  ⚠️  {field_name}: {field_value_str} (未映射，使用原值)")
             return field_value_str
 
-        print(f"  ℹ️  {field_name}: {field_value_str} (无映射配置)")
+        info(f"  ℹ️  {field_name}: {field_value_str} (无映射配置)")
         return field_value_str
 
     def _generate_new_filename(self, output_file, field_values):

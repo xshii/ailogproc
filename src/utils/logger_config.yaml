@@ -1,0 +1,30 @@
+# 日志配置文件
+
+# 控制台日志级别
+# DEBUG - 显示所有调试信息
+# INFO  - 显示一般信息（默认）
+# WARNING - 仅显示警告和错误
+# ERROR - 仅显示错误
+# CRITICAL - 仅显示严重错误
+console_level: INFO
+
+# 是否启用文件日志
+enable_file_logging: false
+
+# 文件日志路径（null 使用默认: logs/app_YYYYMMDD_HHMMSS.log）
+log_file: null
+
+# 文件日志级别（通常比控制台更详细）
+file_level: DEBUG
+
+# 单个日志文件最大字节数（默认1000MB = 1048576000字节）
+# 当文件达到此大小时，会自动轮转到备份文件
+max_bytes: 1048576000  # 1000 * 1024 * 1024
+
+# 保留的备份文件数量（默认5个）
+# 例如: app_20260208_120000.log, app_20260208_120000.log.1, ..., app_20260208_120000.log.5
+# 超过此数量的最早备份会被自动删除
+backup_count: 5
+
+# 是否禁用控制台输出（仅输出到文件）
+console_disabled: false
