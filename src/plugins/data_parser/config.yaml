@@ -3,80 +3,65 @@ enable: true
 
 # 数据源配置
 source:
-  # 从哪里读取数据：log_file (从日志提取) 或 direct (直接输入)
-  type: "log_file"
-
-  # 数据块识别模式（支持多个二进制块）
-  block_mode: true  # true: 支持多个数据块，false: 单一数据流
+  type: "log_file"  # log_file (从日志提取) 或 direct (直接输入)
+  block_mode: true  # true: 多数据块模式，false: 单一数据流
 
   # 数据块标记
   block_markers:
-    type_marker: "@type:"       # 类型标记，如 @type: firmware
-    address_marker: "@address:" # 地址标记，如 @address: 0x1000
+    type_marker: "@type:"       # 数据类型标记
+    address_marker: "@address:" # 内存地址标记
     size_marker: "@size:"       # 大小标记（可选）
     name_marker: "@name:"       # 名称标记（可选）
 
-  # 日志匹配规则（用于从日志中提取16进制数据）
-  pattern: "^\\s*([0-9A-Fa-f\\s]+)\\s*$"  # 正则表达式，匹配纯16进制行
+  # 16进制数据匹配规则
+  pattern: "^\\s*([0-9A-Fa-f\\s]+)\\s*$"
+  format: "spaced"  # "spaced" (AA BB CC) 或 "compact" (AABBCC)
 
-  # 数据格式
-  format: "spaced"  # "spaced" (1A 02 FF) 或 "compact" (1A02FF)
-
-# 字段定义（定义如何解析16进制数据）
-fields:
-  # 示例：解析一个简单的数据包
-  # 格式：[header(1B)] [length(2B)] [type(1B)] [data(NB)] [checksum(1B)]
-  - name: "header"
-    offset: 0        # 起始字节偏移
-    length: 1        # 字节数
-    type: "uint8"    # 数据类型: uint8, uint16, uint32, string, hex
-    description: "数据包头"
-
-  - name: "length"
-    offset: 1
-    length: 2
-    type: "uint16"
-    endian: "big"    # big 或 little
-    description: "数据长度"
-
-  - name: "type"
-    offset: 3
-    length: 1
-    type: "uint8"
-    description: "数据类型"
-
-  - name: "data"
-    offset: 4
-    length: "dynamic"  # dynamic 表示长度由其他字段决定
-    length_field: "length"  # 参考length字段的值
-    type: "hex"
-    description: "数据内容"
-
-  - name: "checksum"
-    offset: "end-1"  # 倒数第1个字节
-    length: 1
-    type: "uint8"
-    description: "校验和"
+# 字段解析（仅在 block_mode=false 时使用）
+fields: []
+# 示例：解析结构化数据包
+# fields:
+#   - name: "header"
+#     offset: 0        # 起始字节偏移
+#     length: 1        # 字节数
+#     type: "uint8"    # 数据类型: uint8, uint16, uint32, string, hex
+#     description: "数据包头"
+#
+#   - name: "length"
+#     offset: 1
+#     length: 2
+#     type: "uint16"
+#     endian: "big"    # big 或 little
+#     description: "数据长度"
+#
+#   - name: "data"
+#     offset: 4
+#     length: "dynamic"      # dynamic 表示长度由其他字段决定
+#     length_field: "length" # 参考length字段的值
+#     type: "hex"
+#     description: "数据内容"
+#
+#   - name: "checksum"
+#     offset: "end-1"  # 倒数第1个字节
+#     length: 1
+#     type: "uint8"
+#     description: "校验和"
 
 # 值映射（可选，用于将数值映射为有意义的名称）
-value_mapping:
-  type:
-    0x01: "CONFIG"
-    0x02: "STATUS"
-    0x03: "DATA"
-    0xFF: "ERROR"
+# value_mapping:
+#   type:
+#     0x01: "CONFIG"
+#     0x02: "STATUS"
+#     0x03: "DATA"
+#     0xFF: "ERROR"
 
 # 校验配置（可选）
-validation:
-  # 是否验证校验和
-  verify_checksum: false
-
-  # 校验和算法：sum, xor, crc16, crc32
-  checksum_algorithm: "sum"
-
-  # 是否验证header
-  verify_header: false
-  expected_header: 0xAA
+validation: {}
+# validation:
+#   verify_checksum: false
+#   checksum_algorithm: "sum"  # sum, xor, crc16, crc32
+#   verify_header: false
+#   expected_header: 0xAA
 
 # 输出配置
 output:
