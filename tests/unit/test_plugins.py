@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.plugins.base import Plugin, get_target_column
-from src.plugins.trace_parser.plugin import TraceParserPlugin
+from src.plugins.config_parser.plugin import ConfigParserPlugin
 from src.plugins.auto_filename.plugin import AutoFilenamePlugin
 
 
@@ -44,8 +44,8 @@ class TestPluginBase(unittest.TestCase):
         self.assertEqual(get_target_column({}), 6)  # 默认 "F" = 6
 
 
-class TestTraceParserPlugin(unittest.TestCase):
-    """测试 TraceParser 插件"""
+class TestConfigParserPlugin(unittest.TestCase):
+    """测试 ConfigParser 插件"""
 
     def setUp(self):
         """测试前准备"""
@@ -73,14 +73,14 @@ thread0	cyc=0x2000 |- powerLevel  = 15  (0x0F)
 
     def test_trace_parser_init(self):
         """测试 TraceParser 初始化"""
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         # 插件会自动加载配置文件
         self.assertIsNotNone(plugin.config)
         self.assertEqual(plugin.level, 1)  # TraceParser 是 Level 1 (提取层)
 
     def test_trace_parser_execute_with_file(self):
         """测试 TraceParser 执行（提供文件路径）"""
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": self.trace_file}
 
         result = plugin.execute(context)
@@ -158,43 +158,43 @@ class TestPluginDependencies(unittest.TestCase):
 
     def test_plugin_levels(self):
         """测试插件层级"""
-        from src.plugins.trace_parser.plugin import TraceParserPlugin
-        from src.plugins.dld_tmp.plugin import DownloadTemplatePlugin
+        from src.plugins.config_parser.plugin import ConfigParserPlugin
+        from src.plugins.dld_configtmp.plugin import DownloadTemplatePlugin
         from src.plugins.excel_writer.plugin import ExcelWriterPlugin
         from src.plugins.auto_filename.plugin import AutoFilenamePlugin
 
         # DownloadTemplate 是 Level 0
         self.assertEqual(DownloadTemplatePlugin.level, 0)
-        # TraceParser 是 Level 1
-        self.assertEqual(TraceParserPlugin.level, 1)
+        # ConfigParser 是 Level 1
+        self.assertEqual(ConfigParserPlugin.level, 1)
         # ExcelWriter 是 Level 2
         self.assertEqual(ExcelWriterPlugin.level, 2)
         # AutoFilename 是 Level 3
         self.assertEqual(AutoFilenamePlugin.level, 3)
 
-    def test_plugin_dependencies_trace_parser(self):
-        """测试 trace_parser 插件依赖"""
-        from src.plugins.trace_parser.plugin import TraceParserPlugin
+    def test_plugin_dependencies_config_parser(self):
+        """测试 config_parser 插件依赖"""
+        from src.plugins.config_parser.plugin import ConfigParserPlugin
 
-        # trace_parser 依赖 dld_tmp
-        self.assertIn("dld_tmp", TraceParserPlugin.dependencies)
+        # config_parser 依赖 dld_configtmp
+        self.assertIn("dld_configtmp", ConfigParserPlugin.dependencies)
 
     def test_plugin_dependencies_excel_writer(self):
         """测试 excel_writer 插件依赖"""
         from src.plugins.excel_writer.plugin import ExcelWriterPlugin
 
-        # excel_writer 依赖 trace_parser
-        self.assertIn("trace_parser", ExcelWriterPlugin.dependencies)
+        # excel_writer 依赖 config_parser
+        self.assertIn("config_parser", ExcelWriterPlugin.dependencies)
 
     def test_all_plugins_are_plugin_instances(self):
         """测试所有插件都是 Plugin 的子类"""
         from src.plugins.base import Plugin
-        from src.plugins.trace_parser.plugin import TraceParserPlugin
-        from src.plugins.dld_tmp.plugin import DownloadTemplatePlugin
+        from src.plugins.config_parser.plugin import ConfigParserPlugin
+        from src.plugins.dld_configtmp.plugin import DownloadTemplatePlugin
         from src.plugins.excel_writer.plugin import ExcelWriterPlugin
         from src.plugins.auto_filename.plugin import AutoFilenamePlugin
 
-        self.assertTrue(issubclass(TraceParserPlugin, Plugin))
+        self.assertTrue(issubclass(ConfigParserPlugin, Plugin))
         self.assertTrue(issubclass(DownloadTemplatePlugin, Plugin))
         self.assertTrue(issubclass(ExcelWriterPlugin, Plugin))
         self.assertTrue(issubclass(AutoFilenamePlugin, Plugin))

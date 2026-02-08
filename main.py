@@ -115,8 +115,8 @@ def main():
 
     # 执行主流程（传递用户指定的文件路径，None 表示由插件自动查找）
     process_log_to_excel(
-        excel_file=excel_file,  # None 表示由 dld_tmp 插件查找默认模板
-        trace_file=None,        # None 表示由 trace_parser 插件查找默认 trace
+        excel_file=excel_file,  # None 表示由 dld_configtmp 插件查找默认模板
+        trace_file=None,        # None 表示由 config_parser 插件查找默认 trace
         output_file=output_file,
         sheet_name=sheet_name
     )

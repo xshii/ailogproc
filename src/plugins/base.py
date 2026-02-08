@@ -64,7 +64,7 @@ class Plugin(ABC):
                     例如: {
                         'trace_file': '/path/to/trace.txt',
                         'excel_file': '/path/to/template.xlsx',
-                        'trace_parser': {'sections': [...], ...},
+                        'config_parser': {'sections': [...], ...},
                         'excel_writer': {'output_file': '/path/to/output.xlsx', ...},
                     }
 

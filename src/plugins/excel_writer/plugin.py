@@ -14,10 +14,10 @@ from src.plugins.excel_writer.processor import ExcelProcessor
 
 from src.utils import info, error
 class ExcelWriterPlugin(Plugin):
-    """Excel写入插件 - Level 2 (Processor)"""
+    """Excel写入插件 - Level 3 (Processor)"""
 
-    level = 2  # 处理层
-    dependencies = ["dld_tmp", "trace_parser"]  # 依赖模板下载和trace解析插件
+    level = 3  # 处理层
+    dependencies = ["dld_configtmp", "config_parser", "constraint_checker"]  # 依赖模板下载、配置解析和约束检查插件
 
     def execute(self, context: dict) -> dict:
         """将配置信息写入Excel模板
@@ -27,8 +27,8 @@ class ExcelWriterPlugin(Plugin):
                 - excel_file: Excel模板文件路径
                 - output_file: 输出文件路径（可选）
                 - sheet_name: 工作表名称（可选）
-                - trace_parser.sections: 配置块列表
-                - trace_parser.parser: LogParser实例
+                - config_parser.sections: 配置块列表
+                - config_parser.parser: LogParser实例
 
         Returns:
             {
@@ -38,22 +38,22 @@ class ExcelWriterPlugin(Plugin):
             }
         """
         # 获取输入参数
-        # 优先使用 dld_tmp 下载的模板，否则使用传入的 excel_file
-        dld_tmp_data = context.get("dld_tmp", {})
-        excel_file = dld_tmp_data.get("template_path") or context.get("excel_file")
+        # 优先使用 dld_configtmp 下载的模板，否则使用传入的 excel_file
+        dld_configtmp_data = context.get("dld_configtmp", {})
+        excel_file = dld_configtmp_data.get("template_path") or context.get("excel_file")
         output_file = context.get("output_file")
         sheet_name = context.get("sheet_name")
 
         if not excel_file:
-            raise ValueError("excel_writer: context 中缺少 'excel_file' 或 'dld_tmp.template_path'")
+            raise ValueError("excel_writer: context 中缺少 'excel_file' 或 'dld_configtmp.template_path'")
 
-        # 获取 trace_parser 的输出
-        config_data = context.get("trace_parser", {})
+        # 获取 config_parser 的输出
+        config_data = context.get("config_parser", {})
         sections = config_data.get("sections", [])
         parser = config_data.get("parser")
 
         if not sections or not parser:
-            raise ValueError("excel_writer: 需要 trace_parser 的输出数据")
+            raise ValueError("excel_writer: 需要 config_parser 的输出数据")
 
         info(f"[Excel写入] 加载模板: {excel_file}")
         # 检查是否有多个TopConfig
@@ -290,17 +290,41 @@ class ExcelWriterPlugin(Plugin):
         self._cleanup_unused_sub_tables(processor, keyword_info)
 
     def _scan_sub_table_positions(self, processor, keyword_mapping):
-        """扫描所有子表的原始位置"""
+        """扫描所有子表的原始位置
+
+        支持占位符关键字（如 IN__x__Cfg），会自动扫描 IN0Cfg, IN1Cfg, IN2Cfg 等
+
+        占位符语法：使用 __x__ 标识需要替换的位置
+        - IN__x__Cfg → IN0Cfg, IN1Cfg, IN2Cfg ...
+        - ExCfg-ER → ExCfg-ER (普通关键字，不替换)
+        """
         keyword_info = {}
         for excel_keyword in keyword_mapping.keys():
-            start_row, end_row = processor.find_sub_table(excel_keyword)
-            if start_row:
-                keyword_info[excel_keyword] = {
-                    "orig_start": start_row,
-                    "orig_end": end_row,
-                    "count": 0,
-                    "used": False,
-                }
+            # 检查是否包含占位符 __x__
+            if '__x__' in excel_keyword:
+                # 扫描所有可能的索引实例（0-9）
+                for idx in range(10):
+                    expanded_keyword = excel_keyword.replace('__x__', str(idx))
+                    start_row, end_row = processor.find_sub_table(expanded_keyword)
+                    if start_row:
+                        keyword_info[expanded_keyword] = {
+                            "orig_start": start_row,
+                            "orig_end": end_row,
+                            "count": 0,
+                            "used": False,
+                            "template": excel_keyword,  # 记录原始模板
+                            "index": idx,  # 记录索引
+                        }
+            else:
+                # 普通关键字，直接查找
+                start_row, end_row = processor.find_sub_table(excel_keyword)
+                if start_row:
+                    keyword_info[excel_keyword] = {
+                        "orig_start": start_row,
+                        "orig_end": end_row,
+                        "count": 0,
+                        "used": False,
+                    }
         return keyword_info
 
     def _fill_all_sections(
@@ -337,10 +361,33 @@ class ExcelWriterPlugin(Plugin):
         return global_last_row
 
     def _find_matching_keyword(self, section_name, keyword_mapping):
-        """查找匹配的Excel关键词"""
+        """查找匹配的Excel关键词
+
+        支持占位符关键字（使用 __x__ 标识）：
+        - 日志: InxCfg0 → Excel: IN0Cfg (配置中为 IN__x__Cfg)
+        - 日志: InxCfg1 → Excel: IN1Cfg
+        - 日志: ERCfg (grp = 0) → Excel: ExCfg-ER (普通关键字，不替换)
+
+        占位符语法：__x__ 表示需要从日志中提取数字替换的位置
+        """
         for excel_keyword, log_pattern in keyword_mapping.items():
-            if re.match(log_pattern, section_name):
-                return excel_keyword
+            match = re.match(log_pattern, section_name)
+            if match:
+                # 检查是否包含占位符 __x__
+                if '__x__' in excel_keyword:
+                    # 从日志 section name 中提取数字索引
+                    # 例如：InxCfg0 → 提取 0，InxCfg1 → 提取 1
+                    digit_match = re.search(r'(\d+)', section_name)
+                    if digit_match:
+                        index = digit_match.group(1)
+                        # 返回展开后的关键字：IN__x__Cfg → IN0Cfg
+                        return excel_keyword.replace('__x__', index)
+                    else:
+                        # 如果没找到数字，使用 0
+                        return excel_keyword.replace('__x__', '0')
+                else:
+                    # 普通关键字，直接返回
+                    return excel_keyword
         return None
 
     def _fill_section_to_sub_table(

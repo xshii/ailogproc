@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TraceParser 高级功能测试
+ConfigParser 高级功能测试
 """
 
 import os
@@ -12,11 +12,11 @@ from pathlib import Path
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.plugins.trace_parser.plugin import TraceParserPlugin
+from src.plugins.config_parser.plugin import ConfigParserPlugin
 
 
-class TestTraceParserAdvanced(unittest.TestCase):
-    """测试 TraceParser 高级功能"""
+class TestConfigParserAdvanced(unittest.TestCase):
+    """测试 ConfigParser 高级功能"""
 
     def setUp(self):
         """测试前准备"""
@@ -41,7 +41,7 @@ thread0	cyc=0x1000 |- pwr_level    = 15  (0x0F)
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write(trace_content)
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         result = plugin.execute(context)
@@ -68,7 +68,7 @@ thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write(trace_content)
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         result = plugin.execute(context)
@@ -95,7 +95,7 @@ thread0	cyc=0x3000 |- cfgGroup    = 1  (0x01)
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write(trace_content)
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         result = plugin.execute(context)
@@ -111,7 +111,7 @@ thread0	cyc=0x3000 |- cfgGroup    = 1  (0x01)
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write("")
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         result = plugin.execute(context)
@@ -133,7 +133,7 @@ thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write(trace_content)
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         result = plugin.execute(context)
@@ -154,7 +154,7 @@ thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
         trace_file = os.path.join(dir2, "trace_001.txt")
         Path(trace_file).touch()
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
 
         # 修改配置以搜索多个目录
         plugin.config["default_trace"] = {
@@ -177,7 +177,7 @@ thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
         Path(trace_file1).touch()
         Path(trace_file2).touch()
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
 
         # 配置多个模式
         plugin.config["default_trace"] = {
@@ -220,7 +220,7 @@ thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write(trace_content)
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         # 应该能处理格式错误的行（跳过）
@@ -240,7 +240,7 @@ thread0	cyc=0x1000 |- longField    = {long_value}
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write(trace_content)
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         result = plugin.execute(context)
@@ -265,7 +265,7 @@ thread0	cyc=0x1000 |- field_name  = 测试值
         with open(trace_file, "w", encoding="utf-8") as f:
             f.write(trace_content)
 
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
         context = {"trace_file": trace_file}
 
         result = plugin.execute(context)
@@ -275,7 +275,7 @@ thread0	cyc=0x1000 |- field_name  = 测试值
 
     def test_no_trace_file_found(self):
         """测试未找到 trace 文件"""
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
 
         # 配置不存在的目录
         plugin.config["default_trace"] = {
@@ -292,7 +292,7 @@ thread0	cyc=0x1000 |- field_name  = 测试值
 
     def test_trace_file_is_directory(self):
         """测试 trace 文件路径实际是目录"""
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
 
         # 配置 path 为目录
         plugin.config["default_trace"] = {

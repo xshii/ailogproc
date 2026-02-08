@@ -107,7 +107,7 @@ thread0	cyc=0x4000 |- powerLevel  = 20  (0x14)
         """测试 workflow - 不使用 API 下载（使用本地模板）"""
         output_file = os.path.join(temp_dir, "output_local.xlsx")
 
-        # 执行 workflow（dld_tmp 默认 download_enabled=false）
+        # 执行 workflow（dld_configtmp 默认 download_enabled=false）
         result_file = process_log_to_excel(
             excel_file=template_file,
             trace_file=sample_trace_file,
@@ -172,11 +172,11 @@ thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
 
 
 class TestDldTmpPluginMocking:
-    """专门测试 dld_tmp 插件的 API 调用"""
+    """专门测试 dld_configtmp 插件的 API 调用"""
 
     def test_api_download_with_full_mock(self):
         """测试完整的 API 下载流程 mock"""
-        from src.plugins.dld_tmp import DownloadTemplatePlugin
+        from src.plugins.dld_configtmp import DownloadTemplatePlugin
 
         # Mock 配置
         mock_config = {

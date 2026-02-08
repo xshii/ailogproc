@@ -9,9 +9,9 @@ from src.plugins.base import Plugin, get_target_column
 
 from src.utils import info, warning
 class AutoFilenamePlugin(Plugin):
-    """自动文件名小插件 - Level 3"""
+    """自动文件名小插件 - Level 4"""
 
-    level = 3  # 小插件
+    level = 4  # 小插件
     dependencies = ["excel_writer"]  # 依赖 excel_writer
 
     def execute(self, context: dict) -> dict:

@@ -1,0 +1,109 @@
+# 配置约束检查插件配置
+enable: true
+
+# 使用的规则版本（不指定则使用最新版本）
+active_version: null  # null 表示自动使用最新版本
+
+# top 表关键字配置
+# 优先级：
+#   1. 本配置文件的 top_keyword（如果指定）
+#   2. excel_writer_config 的 top_table.log_keyword
+#   3. 默认值 "opSch"
+# top_keyword: "opSch"  # 取消注释以覆盖默认行为
+
+# 约束规则库（按版本管理）
+constraint_rules:
+  # 版本 1.0.0 - 2024-01-15
+  "1.0.0_20240115":
+    description: "初始版本约束规则"
+
+    # 单组约束：针对单个 top 表配置组
+    single_constraints:
+      - name: "系统模式1的配置约束"
+        description: "当 systemMode=1 时的允许和禁止配置"
+        when:
+          systemMode: "1"
+        only_allow:
+          debugLevel: ["0", "1", "2"]
+          powerMode: ["low", "medium"]
+        forbid:
+          dangerousFlag: ["1", "true"]
+
+      - name: "调试模式约束"
+        description: "高调试级别禁止生产模式"
+        when:
+          debugLevel: "3"
+        forbid:
+          productionMode: ["1", "enabled"]
+
+    # 多组约束：需要连续2-3个 top 表
+    multi_constraints:
+      - name: "连续两组systemMode一致性"
+        description: "连续两个配置的 systemMode 必须相同"
+        group_count: 2
+        rules:
+          - type: "same_value"
+            field: "systemMode"
+
+          - type: "conditional"
+            when_group: 0
+            when_field: "systemMode"
+            when_value: "1"
+            then_group: 1
+            then_field: "powerLevel"
+            only_allow: ["5", "10", "15"]
+
+  # 版本 1.1.0 - 2024-02-08（最新版本）
+  "1.1.0_20240208":
+    description: "增强版本约束规则"
+
+    single_constraints:
+      - name: "系统模式1的配置约束"
+        when:
+          systemMode: "1"
+        only_allow:
+          debugLevel: ["0", "1", "2", "3"]  # 新增允许级别3
+          powerMode: ["low", "medium", "high"]
+        forbid:
+          dangerousFlag: ["1", "true"]
+
+      - name: "调试模式约束"
+        when:
+          debugLevel: "3"
+          systemMode: "2"  # 多条件
+        forbid:
+          productionMode: ["1", "enabled"]
+
+    multi_constraints:
+      - name: "连续两组systemMode一致性"
+        group_count: 2
+        rules:
+          - type: "same_value"
+            field: "systemMode"
+
+      - name: "三组配置ID递增检查"
+        description: "连续三组配置的 configId 必须递增"
+        group_count: 3
+        rules:
+          - type: "sequence"
+            field: "configId"
+            order: "increasing"
+
+      - name: "级联功率控制"
+        group_count: 3
+        rules:
+          - type: "conditional"
+            when_group: 0
+            when_field: "powerMode"
+            when_value: "high"
+            then_group: 1
+            then_field: "powerMode"
+            forbid: ["low"]
+
+          - type: "conditional"
+            when_group: 1
+            when_field: "powerMode"
+            when_value: "high"
+            then_group: 2
+            then_field: "powerMode"
+            forbid: ["low"]

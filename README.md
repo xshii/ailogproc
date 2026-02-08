@@ -22,9 +22,9 @@ ailogproc/
 │   │   └── logger_config.yaml
 │   └── plugins/             # 插件目录
 │       ├── base.py          # 插件基类
-│       ├── trace_parser/    # Trace 日志解析插件
-│       ├── dld_tmp/         # 模板下载插件
-│       ├── config_extractor/# 配置提取插件
+│       ├── config_parser/   # 配置解析插件
+│       ├── dld_configtmp/   # 模板下载插件
+│       ├── constraint_checker/ # 配置约束检查插件
 │       ├── excel_writer/    # Excel 写入插件
 │       └── auto_filename/   # 自动命名插件
 ├── docs/                    # 文档目录
@@ -68,26 +68,37 @@ python main.py --log-level DEBUG
 ```
 
 **自动查找规则（由插件实现）：**
-- **Excel 模板**：`templates/*.xlsx` → `examples/templates/*.xlsx`（`dld_tmp` 插件）
-- **Trace 文件**：`logs/trace_*.txt` → `logs/*.txt` → `examples/logs/*.txt`（`trace_parser` 插件）
+- **Excel 模板**：`templates/*.xlsx` → `examples/templates/*.xlsx`（`dld_configtmp` 插件）
+- **Trace 文件**：`logs/trace_*.txt` → `logs/*.txt` → `examples/logs/*.txt`（`config_parser` 插件）
 
 ## 插件架构
 
-项目采用**层级插件架构**，插件按层级顺序执行：
+项目采用**层级插件架构**，插件按层级和依赖关系顺序执行：
 
-| 层级 | 插件 | 功能 |
-|------|------|------|
-| **Level 0** | `trace_parser` | 解析 trace 日志文件 |
-| **Level 0** | `dld_tmp` | 从服务器下载 Excel 模板 |
-| **Level 1** | `config_extractor` | 从日志提取配置信息 |
-| **Level 2** | `excel_writer` | 将数据写入 Excel 表格 |
-| **Level 3** | `auto_filename` | 根据内容自动重命名输出文件 |
+| 层级 | 插件 | 依赖 | 功能 |
+|------|------|------|------|
+| **Level 0** | `dld_configtmp` | - | 下载/准备 Excel 模板 |
+| **Level 1** | `config_parser` | `dld_configtmp` | 解析 trace 日志文件 |
+| **Level 2** | `constraint_checker` | `config_parser` | 检查配置约束条件 |
+| **Level 3** | `excel_writer` | `dld_configtmp`, `config_parser`, `constraint_checker` | 将数据写入 Excel 表格 |
+| **Level 4** | `auto_filename` | `excel_writer` | 根据内容自动重命名输出文件 |
+
+**插件依赖链：**
+```
+dld_configtmp (Level 0)
+  └─> config_parser (Level 1)
+        └─> constraint_checker (Level 2)
+              └─> excel_writer (Level 3)
+                    └─> auto_filename (Level 4)
+```
 
 **添加新插件：**
 1. 创建插件目录 `src/plugins/your_plugin/`
-2. 实现 `plugin.py`（继承 `Plugin` 基类）
+2. 实现 `plugin.py`（继承 `Plugin` 基类，设置 `level` 和 `dependencies`）
 3. 在 `src/plugins/__init__.py` 注册
-4. 在 `config/default_config.yaml` 添加配置
+4. 在插件目录创建 `config.yaml` 配置文件
+
+详见：[插件依赖关系文档](docs/PLUGIN_DEPENDENCIES.md)
 
 ## 配置文件
 

@@ -3,10 +3,14 @@
 enable: true
 
 # 关键字映射（Excel关键字 -> 日志正则）
+# 支持占位符 __x__：
+#   - IN__x__Cfg: Excel中有IN0Cfg, IN1Cfg, IN2Cfg等，日志中匹配InxCfg0, InxCfg1, InxCfg2等
+#   - 第一个匹配的日志section(InxCfg0) → 写入IN0Cfg
+#   - 第二个匹配的日志section(InxCfg1) → 写入IN1Cfg
 keyword_mapping:
   ExCfg-ER: 'ERCfg\s*\(grp\s*=\s*\d+\)'
   ExCfg-TX: 'TXCfg\s*\(grp\s*=\s*\d+\)'
-  INxCfg: 'InxCfg\d+'
+  IN__x__Cfg: 'InxCfg\d+'  # 使用 __x__ 作为占位符
 
 # 顶格表格配置
 top_table:

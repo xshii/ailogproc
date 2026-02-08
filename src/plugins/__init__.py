@@ -2,17 +2,19 @@
 插件注册表和调度器
 """
 
-from src.plugins.dld_tmp import DownloadTemplatePlugin
-from src.plugins.trace_parser import TraceParserPlugin
+from src.plugins.dld_configtmp import DownloadTemplatePlugin
+from src.plugins.config_parser import ConfigParserPlugin
+from src.plugins.constraint_checker import ConstraintCheckerPlugin
 from src.plugins.excel_writer import ExcelWriterPlugin
 from src.plugins.auto_filename import AutoFilenamePlugin
 
 
-from src.utils import info, warning, error, debug
+from src.utils import info, warning, error
 # 插件注册表
 PLUGIN_REGISTRY = {
-    "dld_tmp": DownloadTemplatePlugin,
-    "trace_parser": TraceParserPlugin,
+    "dld_configtmp": DownloadTemplatePlugin,
+    "config_parser": ConfigParserPlugin,
+    "constraint_checker": ConstraintCheckerPlugin,
     "excel_writer": ExcelWriterPlugin,
     "auto_filename": AutoFilenamePlugin,
 }

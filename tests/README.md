@@ -9,7 +9,7 @@ tests/
 │   ├── test_excel_processor_advanced.py # Excel处理器高级测试
 │   ├── test_plugins.py                  # 插件系统测试
 │   ├── test_utils.py                    # 工具函数测试
-│   └── test_trace_parser_advanced.py    # TraceParser高级测试
+│   └── test_config_parser_advanced.py    # ConfigParser高级测试
 │
 └── integration/       # 集成测试（IT）
     ├── test_workflow.py                 # 工作流集成测试
@@ -34,7 +34,7 @@ tests/
 - `test_excel_processor_advanced.py` - ExcelProcessor 类的高级功能测试（子表、匹配、特殊前缀）
 - `test_plugins.py` - Plugin 基类、插件依赖、层级测试
 - `test_utils.py` - 日志系统、工具函数测试
-- `test_trace_parser_advanced.py` - TraceParser 解析逻辑、字段映射、边界情况测试
+- `test_config_parser_advanced.py` - ConfigParser 解析逻辑、字段映射、边界情况测试
 
 ### 集成测试（Integration Tests）
 

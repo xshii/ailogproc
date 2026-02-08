@@ -1,5 +1,5 @@
 """
-Trace解析插件 - 从trace文件中提取配置信息
+配置解析插件 - 从trace文件中提取配置信息
 """
 
 import os
@@ -9,11 +9,11 @@ from src.plugins.base import Plugin
 
 
 from src.utils import info
-class TraceParserPlugin(Plugin):
-    """Trace解析插件 - Level 1 (Extractor)"""
+class ConfigParserPlugin(Plugin):
+    """配置解析插件 - Level 1 (Extractor)"""
 
     level = 1  # 提取层
-    dependencies = ["dld_tmp"]  # 依赖模板下载插件（确保模板准备好）
+    dependencies = ["dld_configtmp"]  # 依赖模板下载插件（确保模板准备好）
 
     def execute(self, context: dict) -> dict:
         """从trace文件中提取配置信息
@@ -25,7 +25,7 @@ class TraceParserPlugin(Plugin):
         Returns:
             {
                 'sections': 解析出的配置块列表,
-                'parser': TraceParser实例（供其他插件使用）,
+                'parser': ConfigParser实例（供其他插件使用）,
                 'trace_file': 实际使用的trace文件路径
             }
         """
@@ -36,14 +36,14 @@ class TraceParserPlugin(Plugin):
             trace_file = self._get_default_trace_file()
 
         if not trace_file:
-            raise ValueError("trace_parser: 未指定trace文件，且配置中未设置默认路径")
+            raise ValueError("config_parser: 未指定trace文件，且配置中未设置默认路径")
 
-        info(f"[Trace解析] 解析trace文件: {trace_file}")
+        info(f"[配置解析] 解析trace文件: {trace_file}")
         # 创建解析器并解析（传递配置）
-        parser = TraceParser(trace_file, self.config)
+        parser = ConfigParser(trace_file, self.config)
         sections = parser.parse()
 
-        info(f"[Trace解析] ✓ 找到 {len(sections)} 个配置块")
+        info(f"[配置解析] ✓ 找到 {len(sections)} 个配置块")
         return {
             "sections": sections,
             "parser": parser,  # 返回 parser 实例供其他插件使用
@@ -113,7 +113,7 @@ class TraceParserPlugin(Plugin):
 # ==================== 内部类和工具函数 ====================
 
 
-class TraceParser:
+class ConfigParser:
     """解析trace文件，提取配置块和键值对"""
 
     def __init__(self, trace_file, config: dict):

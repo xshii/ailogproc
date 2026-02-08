@@ -142,8 +142,8 @@ pytest tests/ --cov=src/plugins/excel_writer
 |------|--------|------|
 | processor.py | 48% | 添加 Excel 处理测试 |
 | logger.py | 61% | 添加日志功能测试 |
-| trace_parser | 70% | 添加解析测试 |
-| dld_tmp | 74% | 添加下载测试 |
+| config_parser | 70% | 添加解析测试 |
+| dld_configtmp | 74% | 添加下载测试 |
 
 ---
 

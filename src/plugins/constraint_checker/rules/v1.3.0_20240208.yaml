@@ -1,0 +1,236 @@
+# 配置约束规则 v1.3.0
+# 创建日期: 2024-02-08
+# 描述: 所有字段使用带前缀格式，支持子表字段约束
+
+version: "1.3.0"
+date: "2024-02-08"
+description: "字段统一使用带前缀格式（table.field），支持 top 和 sub 表约束"
+author: "Team"
+changelog:
+  - "所有字段名使用 'sectionName.fieldName' 格式"
+  - "支持对子表字段进行约束检查"
+  - "不同子表的同名字段可以明确区分"
+
+# ==================== 单组约束 ====================
+
+single_constraints:
+  # top 表字段约束（使用前缀）
+  - name: "opSch系统模式1的配置约束"
+    when:
+      opSch.systemMode: "1"
+    only_allow:
+      opSch.debugLevel: ["0", "1", "2", "3"]
+      opSch.powerMode: ["low", "medium", "high"]
+    forbid:
+      opSch.dangerousFlag: ["1", "true"]
+
+  - name: "opSch调试模式约束"
+    when:
+      opSch.debugLevel: "3"
+      opSch.systemMode: "2"
+    forbid:
+      opSch.productionMode: ["1", "enabled"]
+
+  # 功率等级组合约束（top 表）
+  - name: "opSch功率等级组合约束"
+    description: "功率、电压、频率必须配套使用"
+    when:
+      opSch.systemMode: "1"
+
+    only_allow_combinations:
+      # 低功率配置
+      - opSch.powerLevel: "5"
+        opSch.voltageLevel: "1"
+        opSch.frequencyMode: "low"
+
+      # 中功率配置
+      - opSch.powerLevel: "10"
+        opSch.voltageLevel: "2"
+        opSch.frequencyMode: "medium"
+
+      # 高功率配置
+      - opSch.powerLevel: "15"
+        opSch.voltageLevel: "3"
+        opSch.frequencyMode: "high"
+
+  # 子表字段约束（新功能）
+  - name: "ERCfg配置组约束"
+    description: "ERCfg 子表的配置组字段约束"
+    only_allow:
+      ERCfg.cfgGroup: ["0", "1", "2", "3", "4"]
+
+  # 多个子表的同名字段约束（新功能）
+  - name: "I2C总线速度约束"
+    description: "不同 I2C 总线可以有不同的速度限制"
+    only_allow:
+      I2C_0.speed: ["100K", "400K"]      # I2C_0 支持标准和快速模式
+      I2C_1.speed: ["100K", "400K", "1M"] # I2C_1 支持高速模式
+      I2C_2.speed: ["100K"]               # I2C_2 只支持标准模式
+
+  # 跨 top 和 sub 的组合约束（新功能）
+  - name: "功率模式与ERCfg关联"
+    description: "不同功率模式下 ERCfg 的配置组有限制"
+    when:
+      opSch.powerMode: "high"
+    only_allow:
+      ERCfg.cfgGroup: ["0", "1"]  # 高功率模式只允许配置组 0 和 1
+
+# ==================== 多组约束 ====================
+
+multi_constraints:
+  # top 表字段的多组约束（使用前缀）
+  - name: "连续两组opSch.systemMode一致性"
+    group_count: 2
+    rules:
+      - type: "same_value"
+        field: "opSch.systemMode"
+
+  - name: "三组配置ID递增检查"
+    group_count: 3
+    rules:
+      - type: "sequence"
+        field: "opSch.configId"
+        order: "increasing"
+
+  - name: "级联功率控制"
+    group_count: 3
+    rules:
+      - type: "conditional"
+        when_group: 0
+        when_field: "opSch.powerMode"
+        when_value: "high"
+        then_group: 1
+        then_field: "opSch.powerMode"
+        forbid: ["low"]
+
+      - type: "conditional"
+        when_group: 1
+        when_field: "opSch.powerMode"
+        when_value: "high"
+        then_group: 2
+        then_field: "opSch.powerMode"
+        forbid: ["low"]
+
+  # 子表字段的多组约束（新功能）
+  - name: "ERCfg配置组递增"
+    description: "连续两组的 ERCfg.cfgGroup 必须递增"
+    group_count: 2
+    rules:
+      - type: "sequence"
+        field: "ERCfg.cfgGroup"
+        order: "increasing"
+
+  # 跨 top 和 sub 的条件约束（新功能）
+  - name: "功率切换时ERCfg限制"
+    description: "当 opSch 功率模式提升时，ERCfg 配置组不能降低"
+    group_count: 2
+    rules:
+      - type: "conditional"
+        when_group: 0
+        when_field: "opSch.powerMode"
+        when_value: "low"
+        then_group: 1
+        then_field: "ERCfg.cfgGroup"
+        forbid: ["0"]  # 从低功率切换出来时，ERCfg 不能用配置组 0
+
+  # 功率等级切换规则（使用前缀）
+  - name: "opSch功率等级切换规则"
+    description: "定义允许的功率等级切换路径"
+    group_count: 2
+
+    only_allow_combinations:
+      # 从低功率(5)可以切换到
+      - group0:
+          opSch.powerLevel: "5"
+          opSch.voltageLevel: "1"
+          opSch.frequencyMode: "low"
+        group1:
+          opSch.powerLevel: "5"
+          opSch.voltageLevel: "1"
+          opSch.frequencyMode: "low"
+
+      - group0:
+          opSch.powerLevel: "5"
+          opSch.voltageLevel: "1"
+          opSch.frequencyMode: "low"
+        group1:
+          opSch.powerLevel: "10"
+          opSch.voltageLevel: "2"
+          opSch.frequencyMode: "medium"
+
+      # 从中功率(10)可以切换到
+      - group0:
+          opSch.powerLevel: "10"
+          opSch.voltageLevel: "2"
+          opSch.frequencyMode: "medium"
+        group1:
+          opSch.powerLevel: "5"
+          opSch.voltageLevel: "1"
+          opSch.frequencyMode: "low"
+
+      - group0:
+          opSch.powerLevel: "10"
+          opSch.voltageLevel: "2"
+          opSch.frequencyMode: "medium"
+        group1:
+          opSch.powerLevel: "10"
+          opSch.voltageLevel: "2"
+          opSch.frequencyMode: "medium"
+
+      - group0:
+          opSch.powerLevel: "10"
+          opSch.voltageLevel: "2"
+          opSch.frequencyMode: "medium"
+        group1:
+          opSch.powerLevel: "15"
+          opSch.voltageLevel: "3"
+          opSch.frequencyMode: "high"
+
+      # 从高功率(15)可以切换到
+      - group0:
+          opSch.powerLevel: "15"
+          opSch.voltageLevel: "3"
+          opSch.frequencyMode: "high"
+        group1:
+          opSch.powerLevel: "10"
+          opSch.voltageLevel: "2"
+          opSch.frequencyMode: "medium"
+
+      - group0:
+          opSch.powerLevel: "15"
+          opSch.voltageLevel: "3"
+          opSch.frequencyMode: "high"
+        group1:
+          opSch.powerLevel: "15"
+          opSch.voltageLevel: "3"
+          opSch.frequencyMode: "high"
+
+# ==================== 说明 ====================
+
+# 字段命名规范（v1.3.0 新特性）：
+#   所有字段必须使用 "sectionName.fieldName" 格式
+#   - top 表字段：opSch.powerLevel, opSch.systemMode
+#   - 子表字段：ERCfg.cfgGroup, I2C_0.speed, I2C_1.speed
+#
+#   优势：
+#   1. 明确字段所属的表
+#   2. 不同子表的同名字段可以明确区分
+#   3. 支持对子表字段进行约束检查
+
+# 单组约束类型：
+#   - only_allow: 字段只能在指定值列表中
+#   - forbid: 字段不能在指定值列表中
+#   - only_allow_combinations: 多字段组合只能是指定的组合之一
+
+# 多组约束类型：
+#   - same_value: 连续多组的指定字段值必须相同
+#   - sequence: 连续多组的指定字段值必须递增/递减
+#   - conditional: 如果某组满足条件，则另一组必须满足约束
+#   - only_allow_combinations: 连续多组的字段组合必须是指定的组合对之一
+
+# 使用建议：
+#   1. 单组内多字段必须配套使用 → only_allow_combinations (单组)
+#   2. 组间状态转换限制 → only_allow_combinations (多组)
+#   3. 简单的字段值限制 → only_allow / forbid
+#   4. 组间一致性检查 → same_value / sequence / conditional
+#   5. 子表字段约束 → 使用 "subTableName.fieldName" 格式（v1.3.0+）

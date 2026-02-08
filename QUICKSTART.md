@@ -83,8 +83,8 @@ config/                   - 配置目录
   └── .coveragerc        - 测试覆盖率配置
 
 src/plugins/             - 插件目录（层级架构）
-  ├── trace_parser/      - Level 0: 解析 trace 日志
-  ├── dld_tmp/          - Level 0: 下载模板
+  ├── config_parser/     - Level 1: 解析 trace 日志
+  ├── dld_configtmp/          - Level 0: 下载模板
   ├── config_extractor/ - Level 1: 提取配置
   ├── excel_writer/     - Level 2: 写入 Excel
   └── auto_filename/    - Level 3: 自动命名

@@ -149,10 +149,10 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
         print("测试 3: Trace Parser 配置块解析")
         print("=" * 60)
 
-        from src.plugins.trace_parser import TraceParserPlugin
+        from src.plugins.config_parser import ConfigParserPlugin
 
         # 创建插件实例
-        plugin = TraceParserPlugin()
+        plugin = ConfigParserPlugin()
 
         # 执行解析
         context = {"trace_file": self.trace_file}
