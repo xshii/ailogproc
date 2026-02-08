@@ -23,9 +23,7 @@ class PerfParserPlugin(Plugin):
 
         Returns:
             {
-                'events': [事件列表],
                 'pairs': [关联的事件对],
-                'unpaired': [未匹配的事件],
                 'statistics': {统计信息}
             }
         """
@@ -34,7 +32,7 @@ class PerfParserPlugin(Plugin):
 
         if not log_file:
             error("[性能日志解析] 未指定日志文件")
-            return {"events": [], "pairs": [], "unpaired": []}
+            return {"pairs": [], "statistics": {}}
 
         info(f"[性能日志解析] 开始解析: {log_file}")
 
@@ -46,16 +44,22 @@ class PerfParserPlugin(Plugin):
         pairs, unpaired = self._correlate_events(events)
         info(f"[性能日志解析] 找到 {len(pairs)} 对关联事件")
 
+        # 对未匹配的事件打印告警
         if unpaired:
             warning(f"[性能日志解析] {len(unpaired)} 个事件未找到配对")
+            for event in unpaired:
+                warning(
+                    f"  - 未配对: {event['event_type']} 事件，"
+                    f"规则={event['rule_name']}, "
+                    f"行号={event['line_number']}, "
+                    f"字段={event['fields']}"
+                )
 
         # 统计信息
-        statistics = self._compute_statistics(events, pairs, unpaired)
+        statistics = self._compute_statistics(len(events), pairs, len(unpaired))
 
         result = {
-            "events": events,
             "pairs": pairs,
-            "unpaired": unpaired,
             "statistics": statistics,
         }
 
@@ -336,21 +340,19 @@ class PerfParserPlugin(Plugin):
         return performance
 
     def _compute_statistics(
-        self, events: List[Dict], pairs: List[Dict], unpaired: List[Dict]
+        self, total_events: int, pairs: List[Dict], unpaired_count: int
     ) -> Dict:
         """计算统计信息"""
         stats = {
-            "total_events": len(events),
-            "start_events": sum(1 for e in events if e["event_type"] == "start"),
-            "end_events": sum(1 for e in events if e["event_type"] == "end"),
-            "paired_events": len(pairs),
-            "unpaired_events": len(unpaired),
+            "total_events": total_events,
+            "paired_count": len(pairs),
+            "unpaired_count": unpaired_count,
         }
 
         # 按规则统计
         rules = {}
-        for event in events:
-            rule_name = event.get("rule_name", "unknown")
+        for pair in pairs:
+            rule_name = pair.get("rule_name", "unknown")
             rules[rule_name] = rules.get(rule_name, 0) + 1
 
         stats["by_rule"] = rules
