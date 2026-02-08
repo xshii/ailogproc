@@ -110,7 +110,7 @@ class TestAutoFilenamePlugin(unittest.TestCase):
         plugin = AutoFilenamePlugin()
         # 插件会自动加载配置文件
         self.assertIsNotNone(plugin.config)
-        self.assertEqual(plugin.level, 3)
+        self.assertEqual(plugin.level, 4)
 
     def test_auto_filename_execute(self):
         """测试 AutoFilename 执行"""
@@ -168,10 +168,11 @@ class TestPluginDependencies(unittest.TestCase):
         self.assertEqual(DownloadTemplatePlugin.level, 0)
         # ConfigParser 是 Level 1
         self.assertEqual(ConfigParserPlugin.level, 1)
-        # ExcelWriter 是 Level 2
-        self.assertEqual(ExcelWriterPlugin.level, 2)
-        # AutoFilename 是 Level 3
-        self.assertEqual(AutoFilenamePlugin.level, 3)
+        # ConstraintChecker 是 Level 2
+        # ExcelWriter 是 Level 3
+        self.assertEqual(ExcelWriterPlugin.level, 3)
+        # AutoFilename 是 Level 4
+        self.assertEqual(AutoFilenamePlugin.level, 4)
 
     def test_plugin_dependencies_config_parser(self):
         """测试 config_parser 插件依赖"""

@@ -123,11 +123,12 @@ class TestConstraintChecker(unittest.TestCase):
 
     def test_multi_constraint_same_value_pass(self):
         """测试多组约束 - same_value 通过"""
-        # 准备测试数据（两组的 systemMode 相同）
+        # 准备测试数据（两组的 systemMode 相同，ERCfg.cfgGroup 递增）
         sections = [
             {"name": "opSch", "fields": {"systemMode": "1"}},
-            {"name": "ERCfg", "fields": {}},
+            {"name": "ERCfg", "fields": {"cfgGroup": "0"}},
             {"name": "opSch", "fields": {"systemMode": "1"}},
+            {"name": "ERCfg", "fields": {"cfgGroup": "1"}},
         ]
 
         # Mock parser
@@ -135,7 +136,7 @@ class TestConstraintChecker(unittest.TestCase):
         parser.group_by_top_config = Mock(
             return_value=[
                 {"top": sections[0], "subs": [sections[1]]},
-                {"top": sections[2], "subs": []},
+                {"top": sections[2], "subs": [sections[3]]},
             ]
         )
 

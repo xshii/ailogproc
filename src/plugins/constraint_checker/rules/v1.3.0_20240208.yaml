@@ -63,9 +63,9 @@ single_constraints:
   - name: "I2C总线速度约束"
     description: "不同 I2C 总线可以有不同的速度限制"
     only_allow:
-      I2C_0.speed: ["100K", "400K"]      # I2C_0 支持标准和快速模式
-      I2C_1.speed: ["100K", "400K", "1M"] # I2C_1 支持高速模式
-      I2C_2.speed: ["100K"]               # I2C_2 只支持标准模式
+      I2C.0.speed: ["100K", "400K"]      # I2C.0 支持标准和快速模式
+      I2C.1.speed: ["100K", "400K", "1M"] # I2C.1 支持高速模式
+      I2C.2.speed: ["100K"]               # I2C.2 只支持标准模式
 
   # 跨 top 和 sub 的组合约束（新功能）
   - name: "功率模式与ERCfg关联"
@@ -210,7 +210,7 @@ multi_constraints:
 # 字段命名规范（v1.3.0 新特性）：
 #   所有字段必须使用 "sectionName.fieldName" 格式
 #   - top 表字段：opSch.powerLevel, opSch.systemMode
-#   - 子表字段：ERCfg.cfgGroup, I2C_0.speed, I2C_1.speed
+#   - 子表字段：ERCfg.cfgGroup, I2C.0.speed, I2C.1.speed
 #
 #   优势：
 #   1. 明确字段所属的表

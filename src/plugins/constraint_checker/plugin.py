@@ -93,12 +93,31 @@ class ConstraintCheckerPlugin(Plugin):
         return result
 
     def _get_active_rules(self) -> tuple:
-        """从 rules/ 目录加载激活的规则版本
+        """获取激活的规则版本
+
+        优先级：
+        1. 配置中的 constraint_rules（用于测试）
+        2. rules/ 目录中的规则文件（生产环境）
 
         Returns:
             (version, rules): 版本名称和规则字典
         """
-        # 获取规则目录路径
+        # 1. 优先检查配置中的 constraint_rules（用于测试）
+        constraint_rules = self.config.get("constraint_rules", {})
+        if constraint_rules:
+            active_version = self.config.get("active_version")
+
+            # 如果指定了版本，使用指定版本
+            if active_version and active_version in constraint_rules:
+                return active_version, constraint_rules[active_version]
+
+            # 否则使用最新版本（按版本号排序）
+            versions = sorted(constraint_rules.keys())
+            if versions:
+                latest_version = versions[-1]
+                return latest_version, constraint_rules[latest_version]
+
+        # 2. 从 rules/ 目录加载规则文件（生产环境）
         plugin_dir = os.path.dirname(os.path.abspath(__file__))
         rules_dir = self.config.get("rules_dir", "rules")
         rules_path = os.path.join(plugin_dir, rules_dir)
