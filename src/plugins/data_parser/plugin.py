@@ -377,78 +377,108 @@ class DataParserPlugin(Plugin):
 
     def _extract_data_blocks(self, log_file: str) -> List[Dict]:
         """从日志中提取多个数据块"""
+        try:
+            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+                raw_blocks = self._parse_log_lines(f)
+
+            processed_blocks = self._finalize_blocks(raw_blocks)
+            info(f"[数据解析] 从日志中提取到 {len(processed_blocks)} 个数据块")
+            return processed_blocks
+
+        except Exception as e:
+            error(f"[数据解析] 提取数据块失败: {e}")
+            return []
+
+    def _parse_log_lines(self, file_handle) -> List[Dict]:
+        """解析日志文件的每一行，提取数据块"""
         markers = self.config["source"]["block_markers"]
         pattern = self.config["source"]["pattern"]
 
         data_blocks = []
         current_block = None
 
-        try:
-            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
-                for line_num, line in enumerate(f, 1):
-                    line = line.strip()
+        for line_num, line in enumerate(file_handle, 1):
+            line = line.strip()
 
-                    # 检查类型标记
-                    if markers["type_marker"] in line:
-                        # 保存上一个块
-                        if current_block and current_block.get("hex_lines"):
-                            data_blocks.append(current_block)
+            # 尝试处理各种标记行
+            if self._is_type_marker(line, markers["type_marker"]):
+                current_block = self._finalize_and_start_new_block(
+                    current_block, data_blocks, line, markers["type_marker"], line_num
+                )
+            elif current_block:
+                self._process_marker_line(current_block, line, markers)
 
-                        # 开始新块
-                        type_value = line.split(markers["type_marker"])[-1].strip()
-                        current_block = {
-                            "type": type_value,
-                            "address": None,
-                            "size": None,
-                            "name": None,
-                            "hex_lines": [],
-                            "start_line": line_num,
-                        }
+            # 检查16进制数据行
+            if current_block and re.match(pattern, line):
+                current_block["hex_lines"].append(line)
 
-                    # 检查地址标记
-                    elif markers["address_marker"] in line:
-                        if current_block:
-                            addr_str = line.split(markers["address_marker"])[-1].strip()
-                            # 支持 0x1000 或 1000 格式
-                            if addr_str.startswith("0x") or addr_str.startswith("0X"):
-                                current_block["address"] = int(addr_str, 16)
-                            else:
-                                current_block["address"] = int(addr_str, 16) if addr_str.replace(" ", "") else None
+        # 保存最后一个块
+        if current_block and current_block.get("hex_lines"):
+            data_blocks.append(current_block)
 
-                    # 检查大小标记
-                    elif markers.get("size_marker") and markers["size_marker"] in line:
-                        if current_block:
-                            size_str = line.split(markers["size_marker"])[-1].strip()
-                            current_block["size"] = int(size_str) if size_str.isdigit() else None
+        return data_blocks
 
-                    # 检查名称标记
-                    elif markers.get("name_marker") and markers["name_marker"] in line:
-                        if current_block:
-                            current_block["name"] = line.split(markers["name_marker"])[-1].strip()
+    def _is_type_marker(self, line: str, type_marker: str) -> bool:
+        """检查是否为类型标记行"""
+        return type_marker in line
 
-                    # 检查是否为16进制数据行
-                    elif re.match(pattern, line):
-                        if current_block is not None:
-                            current_block["hex_lines"].append(line)
+    def _finalize_and_start_new_block(
+        self, current_block: Optional[Dict], data_blocks: List[Dict],
+        line: str, type_marker: str, line_num: int
+    ) -> Dict:
+        """完成当前块并开始新块"""
+        # 保存上一个块
+        if current_block and current_block.get("hex_lines"):
+            data_blocks.append(current_block)
 
-                # 保存最后一个块
-                if current_block and current_block.get("hex_lines"):
-                    data_blocks.append(current_block)
+        # 开始新块
+        type_value = line.split(type_marker)[-1].strip()
+        return {
+            "type": type_value,
+            "address": None,
+            "size": None,
+            "name": None,
+            "hex_lines": [],
+            "start_line": line_num,
+        }
 
-            # 处理每个块：合并16进制行并转换为字节
-            for block in data_blocks:
-                hex_str = " ".join(block["hex_lines"])
-                block["hex_string"] = hex_str
-                block["bytes"] = self._hex_to_bytes(hex_str)
-                block["byte_count"] = len(block["bytes"]) if block["bytes"] else 0
-                block["end_line"] = block["start_line"] + len(block["hex_lines"]) + 3  # 估算
+    def _process_marker_line(self, block: Dict, line: str, markers: Dict) -> None:
+        """处理标记行（地址、大小、名称）"""
+        if markers["address_marker"] in line:
+            self._parse_address_marker(block, line, markers["address_marker"])
+        elif markers.get("size_marker") and markers["size_marker"] in line:
+            self._parse_size_marker(block, line, markers["size_marker"])
+        elif markers.get("name_marker") and markers["name_marker"] in line:
+            self._parse_name_marker(block, line, markers["name_marker"])
 
-            info(f"[数据解析] 从日志中提取到 {len(data_blocks)} 个数据块")
-            return data_blocks
+    def _parse_address_marker(self, block: Dict, line: str, marker: str) -> None:
+        """解析地址标记"""
+        addr_str = line.split(marker)[-1].strip()
+        if addr_str.startswith(("0x", "0X")):
+            block["address"] = int(addr_str, 16)
+        elif addr_str.replace(" ", ""):
+            block["address"] = int(addr_str, 16)
 
-        except Exception as e:
-            error(f"[数据解析] 提取数据块失败: {e}")
-            return []
+    def _parse_size_marker(self, block: Dict, line: str, marker: str) -> None:
+        """解析大小标记"""
+        size_str = line.split(marker)[-1].strip()
+        if size_str.isdigit():
+            block["size"] = int(size_str)
+
+    def _parse_name_marker(self, block: Dict, line: str, marker: str) -> None:
+        """解析名称标记"""
+        block["name"] = line.split(marker)[-1].strip()
+
+    def _finalize_blocks(self, raw_blocks: List[Dict]) -> List[Dict]:
+        """完成块处理：合并16进制行并转换为字节"""
+        for block in raw_blocks:
+            hex_str = " ".join(block["hex_lines"])
+            block["hex_string"] = hex_str
+            block["bytes"] = self._hex_to_bytes(hex_str)
+            block["byte_count"] = len(block["bytes"]) if block["bytes"] else 0
+            block["end_line"] = block["start_line"] + len(block["hex_lines"]) + 3
+
+        return raw_blocks
 
     def _export_binaries(self, data_blocks: List[Dict], timestamp: str = None) -> List[str]:
         """导出二进制文件"""

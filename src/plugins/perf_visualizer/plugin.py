@@ -155,113 +155,151 @@ class PerfVisualizerPlugin(Plugin):
 
     def _create_timeline_figure(self, timeline_data: List[Dict], context: dict):
         """创建时间线图表（PyEcharts版本，使用堆叠Bar模拟甘特图）"""
-        from pyecharts import options as opts
         from pyecharts.charts import Bar
 
         config = self.config["gantt"]
+        units, unit_colors = self._prepare_unit_data(timeline_data)
 
-        # 按执行单元分组
+        bar = self._initialize_chart(config, units)
+        self._add_timeline_series(bar, timeline_data, units, unit_colors)
+        self._apply_chart_options(bar, config)
+
+        bar.reversal_axis()
+        return bar
+
+    def _prepare_unit_data(self, timeline_data: List[Dict]) -> tuple:
+        """准备执行单元数据和颜色映射"""
         units = sorted(set(item["unit"] for item in timeline_data))
-
-        # 准备颜色映射
         colors = self._get_color_scheme(len(units))
         unit_colors = {
             unit: colors[idx % len(colors)] for idx, unit in enumerate(units)
         }
+        return units, unit_colors
 
-        # 创建Bar图表（横向）
+    def _initialize_chart(self, config: Dict, units: List) -> "Bar":
+        """初始化图表对象"""
+        from pyecharts import options as opts
+        from pyecharts.charts import Bar
+
         bar = Bar(init_opts=opts.InitOpts(
             width=f"{config.get('width', 1400)}px",
             height=f"{config.get('height', 600)}px",
             theme="light"
         ))
-
-        # 设置Y轴为执行单元
         bar.add_xaxis(xaxis_data=units)
+        return bar
 
-        # 为每个算子创建两个系列：空白占位 + 实际耗时
-        # 这样可以模拟甘特图的效果（通过堆叠实现偏移）
+    def _add_timeline_series(
+        self, bar, timeline_data: List[Dict], units: List, unit_colors: Dict
+    ) -> None:
+        """添加时间线数据系列"""
+        from pyecharts import options as opts
+
         for idx, item in enumerate(timeline_data):
-            unit = item["unit"]
-            unit_idx = units.index(unit)
-            color = unit_colors[unit]
+            unit_idx = units.index(item["unit"])
+            color = unit_colors[item["unit"]]
 
-            # 创建占位数据（模拟起始位置）
-            placeholder_data = [0] * len(units)
-            placeholder_data[unit_idx] = item["start_cycle"]
-
-            # 创建实际数据（耗时）
-            duration_data = [None] * len(units)
-            duration_data[unit_idx] = item["duration_cycles"]
-
-            # 添加占位系列（不显示在图例中）
-            bar.add_yaxis(
-                series_name=f"_placeholder_{idx}",
-                y_axis=placeholder_data,
-                stack=f"stack_{unit_idx}",
-                itemstyle_opts=opts.ItemStyleOpts(opacity=0),
-                label_opts=opts.LabelOpts(is_show=False),
-            )
+            # 添加占位系列（模拟起始位置）
+            self._add_placeholder_series(bar, idx, unit_idx, item, len(units), opts)
 
             # 添加实际数据系列
-            tooltip_content = (
-                f"算子ID: {item['operator_id']}<br/>"
-                f"来源: {item['source']}<br/>"
-                f"开始Cycle: {item['start_cycle']}<br/>"
-                f"结束Cycle: {item['end_cycle']}<br/>"
-                f"耗时: {item['duration_cycles']} cycles<br/>"
-                f"日志行: {item['start_line']}-{item['end_line']}"
-            )
+            self._add_duration_series(bar, idx, unit_idx, item, color, len(units), opts)
 
-            bar.add_yaxis(
-                series_name=f"{item['operator_id']}",
-                y_axis=duration_data,
-                stack=f"stack_{unit_idx}",
-                itemstyle_opts=opts.ItemStyleOpts(color=color),
-                label_opts=opts.LabelOpts(is_show=False),
-                tooltip_opts=opts.TooltipOpts(
-                    formatter=tooltip_content
-                ),
-            )
+    def _add_placeholder_series(
+        self, bar, idx: int, unit_idx: int, item: Dict, num_units: int, opts
+    ) -> None:
+        """添加占位系列"""
+        placeholder_data = [0] * num_units
+        placeholder_data[unit_idx] = item["start_cycle"]
 
-        # 配置图表选项
+        bar.add_yaxis(
+            series_name=f"_placeholder_{idx}",
+            y_axis=placeholder_data,
+            stack=f"stack_{unit_idx}",
+            itemstyle_opts=opts.ItemStyleOpts(opacity=0),
+            label_opts=opts.LabelOpts(is_show=False),
+        )
+
+    def _add_duration_series(
+        self, bar, idx: int, unit_idx: int, item: Dict,
+        color: str, num_units: int, opts
+    ) -> None:
+        """添加耗时数据系列"""
+        duration_data = [None] * num_units
+        duration_data[unit_idx] = item["duration_cycles"]
+
+        tooltip_content = self._build_tooltip_content(item)
+
+        bar.add_yaxis(
+            series_name=f"{item['operator_id']}",
+            y_axis=duration_data,
+            stack=f"stack_{unit_idx}",
+            itemstyle_opts=opts.ItemStyleOpts(color=color),
+            label_opts=opts.LabelOpts(is_show=False),
+            tooltip_opts=opts.TooltipOpts(formatter=tooltip_content),
+        )
+
+    def _build_tooltip_content(self, item: Dict) -> str:
+        """构建tooltip内容"""
+        return (
+            f"算子ID: {item['operator_id']}<br/>"
+            f"来源: {item['source']}<br/>"
+            f"开始Cycle: {item['start_cycle']}<br/>"
+            f"结束Cycle: {item['end_cycle']}<br/>"
+            f"耗时: {item['duration_cycles']} cycles<br/>"
+            f"日志行: {item['start_line']}-{item['end_line']}"
+        )
+
+    def _apply_chart_options(self, bar, config: Dict) -> None:
+        """应用图表全局选项"""
+        from pyecharts import options as opts
+
         bar.set_global_opts(
-            title_opts=opts.TitleOpts(
-                title=config["title"],
-                pos_left="center",
-                title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20)
-            ),
-            xaxis_opts=opts.AxisOpts(
-                name="执行单元",
-                axislabel_opts=opts.LabelOpts(font_size=12, rotate=0),
-            ),
-            yaxis_opts=opts.AxisOpts(
-                name="Cycle",
-                name_location="middle",
-                name_gap=50,
-                name_textstyle_opts=opts.TextStyleOpts(color="#34495e", font_size=14),
-                axislabel_opts=opts.LabelOpts(font_size=12),
-                splitline_opts=opts.SplitLineOpts(is_show=True),
-            ),
+            title_opts=self._build_title_opts(config, opts),
+            xaxis_opts=self._build_xaxis_opts(opts),
+            yaxis_opts=self._build_yaxis_opts(opts),
             tooltip_opts=opts.TooltipOpts(
                 trigger="item",
                 axis_pointer_type="shadow"
             ),
-            legend_opts=opts.LegendOpts(
-                is_show=False  # 隐藏图例，因为每个算子都是一个系列
-            ),
-            datazoom_opts=[
-                opts.DataZoomOpts(type_="slider", orient="vertical"),
-                opts.DataZoomOpts(type_="slider", orient="horizontal"),
-                opts.DataZoomOpts(type_="inside", orient="vertical"),
-                opts.DataZoomOpts(type_="inside", orient="horizontal"),
-            ],
+            legend_opts=opts.LegendOpts(is_show=False),
+            datazoom_opts=self._build_datazoom_opts(opts),
         )
 
-        # 反转坐标轴以获得横向甘特图效果
-        bar.reversal_axis()
+    def _build_title_opts(self, config: Dict, opts) -> "TitleOpts":
+        """构建标题选项"""
+        return opts.TitleOpts(
+            title=config["title"],
+            pos_left="center",
+            title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20)
+        )
 
-        return bar
+    def _build_xaxis_opts(self, opts) -> "AxisOpts":
+        """构建X轴选项"""
+        return opts.AxisOpts(
+            name="执行单元",
+            axislabel_opts=opts.LabelOpts(font_size=12, rotate=0),
+        )
+
+    def _build_yaxis_opts(self, opts) -> "AxisOpts":
+        """构建Y轴选项"""
+        return opts.AxisOpts(
+            name="Cycle",
+            name_location="middle",
+            name_gap=50,
+            name_textstyle_opts=opts.TextStyleOpts(color="#34495e", font_size=14),
+            axislabel_opts=opts.LabelOpts(font_size=12),
+            splitline_opts=opts.SplitLineOpts(is_show=True),
+        )
+
+    def _build_datazoom_opts(self, opts) -> List:
+        """构建缩放选项"""
+        return [
+            opts.DataZoomOpts(type_="slider", orient="vertical"),
+            opts.DataZoomOpts(type_="slider", orient="horizontal"),
+            opts.DataZoomOpts(type_="inside", orient="vertical"),
+            opts.DataZoomOpts(type_="inside", orient="horizontal"),
+        ]
 
     def _get_color_scheme(self, num_colors: int) -> List[str]:
         """获取配色方案"""
