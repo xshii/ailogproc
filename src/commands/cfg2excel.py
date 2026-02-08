@@ -3,6 +3,8 @@ cfg2excel 命令 - 配置导出到Excel
 """
 
 import argparse
+import os
+
 from src.commands import Command
 from src.utils import info, error
 
@@ -48,6 +50,10 @@ class Cfg2ExcelCommand(Command):
         info("配置导出到Excel (cfg2excel)")
         info("=" * 60)
 
+        # 验证输入文件
+        if not self._validate_inputs(args):
+            return 1
+
         try:
             # 延迟导入避免循环依赖
             from src.workflow import process_log_to_excel
@@ -67,3 +73,36 @@ class Cfg2ExcelCommand(Command):
 
             traceback.print_exc()
             return 1
+
+    def _validate_inputs(self, args: argparse.Namespace) -> bool:
+        """验证输入文件和路径"""
+        from src.utils import validate_file_extension, validate_directory_writable
+
+        has_errors = False
+
+        # 验证模板文件（如果指定）
+        if args.template:
+            if not os.path.isfile(args.template):
+                error(f"模板文件不存在: {args.template}")
+                has_errors = True
+            elif not validate_file_extension(args.template, [".xlsx", ".xlsm"]):
+                error(f"模板文件格式不支持（仅支持 .xlsx 或 .xlsm）: {args.template}")
+                has_errors = True
+
+        # 验证日志文件（如果指定）
+        if args.log:
+            if not os.path.isfile(args.log):
+                error(f"日志文件不存在: {args.log}")
+                has_errors = True
+
+        # 验证输出路径（如果指定）
+        if args.output:
+            output_dir = os.path.dirname(args.output) or "."
+            if not os.path.isdir(output_dir):
+                error(f"输出目录不存在: {output_dir}")
+                has_errors = True
+            elif not validate_directory_writable(output_dir):
+                error(f"输出目录不可写: {output_dir}")
+                has_errors = True
+
+        return not has_errors

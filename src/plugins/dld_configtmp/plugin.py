@@ -231,10 +231,24 @@ class DownloadTemplatePlugin(Plugin):
 
     def _save_template(self, file_content: bytes, version: str, manifest: dict) -> str:
         """保存模板文件并备份旧版本"""
+        from src.utils import sanitize_filename, validate_path, create_safe_directory
+
         storage = self.config.get("storage", {})
         templates_dir = storage.get("templates_dir", "templates")
-        template_filename = f"template_{version}.xlsx"
-        template_path = os.path.join(templates_dir, template_filename)
+
+        # 清理版本号，防止路径遍历
+        safe_version = sanitize_filename(version)
+        template_filename = f"template_{safe_version}.xlsx"
+
+        # 确保目录存在
+        create_safe_directory(templates_dir)
+
+        # 验证路径安全性
+        try:
+            template_path = validate_path(templates_dir, template_filename)
+        except Exception as e:
+            error(f"路径验证失败: {e}")
+            raise
 
         # 备份旧模板
         if manifest.get("current_template") and os.path.exists(

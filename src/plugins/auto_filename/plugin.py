@@ -35,13 +35,21 @@ class AutoFilenamePlugin(Plugin):
 
         new_filename = self._generate_new_filename(output_file, field_values)
         info(f"  ✓ 新文件名: {os.path.basename(new_filename)}")
+
         # 实际重命名文件
-        if os.path.exists(output_file):
+        if not os.path.exists(output_file):
+            warning("  ⚠️  原文件不存在，无法重命名")
+            return {"output_file": output_file}  # 返回原文件名
+
+        try:
             os.rename(output_file, new_filename)
             info("  ✓ 文件已重命名")
-        else:
-            warning("  ⚠️  原文件不存在，无法重命名")
-        return {"output_file": new_filename}
+            return {"output_file": new_filename}
+        except (OSError, FileExistsError) as e:
+            from src.utils import error
+
+            error(f"  ✗ 文件重命名失败: {e}")
+            return {"output_file": output_file}  # 返回原文件名
 
     def _validate_prerequisites(self, context):
         """验证前置条件"""
@@ -142,7 +150,7 @@ class AutoFilenamePlugin(Plugin):
                 return mapped_value
 
             if default_value:
-                print(
+                warning(
                     f"  ⚠️  {field_name}: {field_value_str} → {default_value} (未映射)"
                 )
                 return default_value

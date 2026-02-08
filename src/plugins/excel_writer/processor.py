@@ -353,6 +353,49 @@ class ExcelProcessor:
 
         return None
 
+    def _match_field_in_column(
+        self,
+        field_name: str,
+        start_row: int,
+        end_row: int,
+        column: int,
+        enable_partial_match: bool = True,
+    ) -> list:
+        """
+        通用字段匹配方法 - 在指定列中查找字段名匹配的行.
+
+        Args:
+            field_name: 要查找的字段名
+            start_row: 开始行号
+            end_row: 结束行号
+            column: 列号（1-based）
+            enable_partial_match: 是否启用部分匹配
+
+        Returns:
+            list: 匹配的行号列表
+        """
+        match_rows = []
+        field_name_lower = field_name.lower()
+
+        for row in range(start_row, end_row + 1):
+            cell_value = self.sheet.cell(row, column).value
+            if not cell_value:
+                continue
+
+            cell_str = str(cell_value).strip()
+            cell_str_lower = cell_str.lower()
+
+            # 精确匹配（不区分大小写）
+            if cell_str_lower == field_name_lower:
+                match_rows.append(row)
+            # 部分匹配（不区分大小写）
+            elif enable_partial_match and (
+                field_name_lower in cell_str_lower or cell_str_lower in field_name_lower
+            ):
+                match_rows.append(row)
+
+        return match_rows
+
     def _fill_cell_value(self, row, target_col, field_value, is_special, merge_rows):
         """填充单元格值"""
         if is_special and merge_rows > 1:
@@ -458,25 +501,10 @@ class ExcelProcessor:
         unmatched_fields = []
 
         for field_name, field_value in log_section["fields"].items():
-            match_rows = []
-            field_name_lower = field_name.lower()  # 转小写用于比较
-
-            # 在B列（列1，因为A列是关键字）搜索字段名
-            for row in range(start_row, end_row + 1):
-                cell_value = self.sheet.cell(row, 2).value  # B列
-                if cell_value:
-                    cell_str = str(cell_value).strip()
-                    cell_str_lower = cell_str.lower()  # 转小写比较
-
-                    # 精确匹配（不区分大小写）
-                    if cell_str_lower == field_name_lower:
-                        match_rows.append(row)
-                    # 部分匹配（不区分大小写）
-                    elif enable_partial_match and (
-                        field_name_lower in cell_str_lower
-                        or cell_str_lower in field_name_lower
-                    ):
-                        match_rows.append(row)
+            # 使用通用字段匹配方法在B列查找
+            match_rows = self._match_field_in_column(
+                field_name, start_row, end_row, column=2, enable_partial_match=enable_partial_match
+            )
 
             # 检查是否匹配
             if not match_rows:
@@ -657,10 +685,11 @@ class ExcelProcessor:
             try:
                 import subprocess
 
-                subprocess.Popen(f'explorer /select,"{abs_path}"')
+                # 使用列表形式避免命令注入风险
+                subprocess.Popen(["explorer", "/select,", abs_path])
                 info("✓ 已在资源管理器中打开文件位置")
-            except Exception:
-                pass
+            except (OSError, subprocess.SubprocessError) as e:
+                warning(f"无法在资源管理器中打开文件: {e}")
 
     def _print_file_not_found_error(self):
         """打印文件未找到错误"""

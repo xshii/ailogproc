@@ -158,16 +158,16 @@ class ExcelWriterPlugin(Plugin):
                 matched = processor.match_and_fill_top_table(
                     top_section, start_row, end_row
                 )
-                print(f"[Excel写入] ✓ TopConfig #1: 顶格表格匹配 {len(matched)} 个字段")
+                info(f"[Excel写入] ✓ TopConfig #1: 顶格表格匹配 {len(matched)} 个字段")
             else:
                 error("[Excel写入] ✗ 未找到顶格表格")
             # 如果有多个 TopConfig，显示警告
             if len(groups) > 1:
-                print(
+                warning(
                     f"[Excel写入] ⚠️  检测到 {len(groups)} 个 TopConfig，"
                     f"但单工作表模式下顶格表格只能显示第一个"
                 )
-                print(
+                warning(
                     "[Excel写入] ⚠️  建议使用 multi_top_mode: 'multi_sheets' 以显示所有 TopConfig"
                 )
 
@@ -468,7 +468,10 @@ class ExcelWriterPlugin(Plugin):
                     auto_filename_config = yaml.safe_load(f) or {}
             else:
                 auto_filename_config = {}
-        except Exception:
+        except (FileNotFoundError, yaml.YAMLError, PermissionError) as e:
+            from src.utils import warning
+
+            warning(f"无法加载 auto_filename 配置: {e}")
             auto_filename_config = {}
 
         if auto_filename_config.get("enable", False):

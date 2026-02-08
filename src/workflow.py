@@ -45,9 +45,9 @@ def process_log_to_excel(excel_file, trace_file, output_file=None, sheet_name=No
         output_file = final_context.get("excel_writer", {}).get("output_file")
 
     if output_file:
-        print("\n✅ 处理完成！")
-        print(f"输出文件: {output_file}")
+        info("\n✅ 处理完成！")
+        info(f"输出文件: {output_file}")
     else:
-        print("\n⚠️  处理完成，但未生成输出文件")
+        warning("\n⚠️  处理完成，但未生成输出文件")
 
     return output_file
