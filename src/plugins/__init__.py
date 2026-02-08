@@ -56,7 +56,10 @@ def run_plugins(plugins: list, plugin_configs: dict, initial_context: dict) -> d
     _print_plugin_header()
 
     for plugin in plugins:
-        _execute_single_plugin(plugin, context)
+        should_stop = _execute_single_plugin(plugin, context)
+        if should_stop:
+            info("\n⏹️  插件流水线提前终止")
+            break
 
     _print_plugin_footer()
 
@@ -74,12 +77,16 @@ def _print_plugin_footer():
     info("插件执行完成")
     info("=" * 60)
 def _execute_single_plugin(plugin, context):
-    """执行单个插件"""
+    """执行单个插件
+
+    Returns:
+        bool: True 表示应该停止后续插件执行，False 表示继续
+    """
     plugin_key = _get_plugin_key(plugin)
     info(f"\n[Level {plugin.level}] 执行插件: {plugin_key}")
     if not _check_dependencies(plugin, context):
         warning("  ⚠️  跳过: 依赖未满足")
-        return
+        return False
 
     try:
         result = plugin.execute(context)
@@ -87,13 +94,20 @@ def _execute_single_plugin(plugin, context):
         if result:
             context[plugin_key] = result
             info("  ✓ 完成")
+
+            # 检查是否需要停止后续插件执行
+            if result.get("stop_pipeline", False):
+                return True
         else:
             info("  ✓ 完成（无输出）")
+
+        return False
     except Exception as e:
         error(f"  ❌ 失败: {e}")
         import traceback
 
         traceback.print_exc()
+        return False
 
 
 def _get_plugin_key(plugin) -> str:

@@ -2,6 +2,8 @@
 配置约束检查插件 - 验证配置是否满足约束条件
 """
 
+import os
+import yaml
 from typing import List, Dict
 from src.plugins.base import Plugin
 from src.utils import info, warning, error
@@ -35,7 +37,12 @@ class ConstraintCheckerPlugin(Plugin):
 
         if not sections:
             info("[约束检查] 无配置数据，跳过检查")
-            return {"validation_passed": True, "violations": []}
+            result = {"validation_passed": True, "violations": []}
+            # 检查是否为仅检查模式
+            if self.config.get("check_only", False):
+                info("[约束检查] 仅检查模式：跳过后续插件执行")
+                result["stop_pipeline"] = True
+            return result
 
         info("[约束检查] 开始检查配置约束...")
 
@@ -53,44 +60,91 @@ class ConstraintCheckerPlugin(Plugin):
         multi_violations = self._check_multi_constraints(sections, rules, parser, context)
         violations.extend(multi_violations)
 
+        # 检查是否为仅检查模式
+        check_only = self.config.get("check_only", False)
+
         # 输出结果
         if violations:
             error(f"[约束检查] ✗ 发现 {len(violations)} 个违规")
             for idx, violation in enumerate(violations, 1):
                 error(f"  [{idx}] {violation['message']}")
-            return {
+            result = {
                 "validation_passed": False,
                 "violations": violations,
                 "version": version,
             }
         else:
             info("[约束检查] ✓ 所有约束检查通过")
-            return {
+            result = {
                 "validation_passed": True,
                 "violations": [],
                 "version": version,
             }
 
-    def _get_active_rules(self) -> tuple:
-        """获取激活的规则版本"""
-        constraint_rules = self.config.get("constraint_rules", {})
-        active_version = self.config.get("active_version")
+        # 如果是仅检查模式，设置停止标志
+        if check_only:
+            info("[约束检查] 仅检查模式：跳过后续插件执行")
+            result["stop_pipeline"] = True
 
-        if not constraint_rules:
-            warning("[约束检查] 未配置约束规则")
+        return result
+
+    def _get_active_rules(self) -> tuple:
+        """从 rules/ 目录加载激活的规则版本
+
+        Returns:
+            (version, rules): 版本名称和规则字典
+        """
+        # 获取规则目录路径
+        plugin_dir = os.path.dirname(os.path.abspath(__file__))
+        rules_dir = self.config.get("rules_dir", "rules")
+        rules_path = os.path.join(plugin_dir, rules_dir)
+
+        if not os.path.exists(rules_path):
+            warning(f"[约束检查] 规则目录不存在: {rules_path}")
             return "none", {"single_constraints": [], "multi_constraints": []}
 
-        # 如果指定了版本，使用指定版本
-        if active_version and active_version in constraint_rules:
-            return active_version, constraint_rules[active_version]
+        # 获取所有规则文件（格式: v1.0.0_20240115.yaml）
+        import re
+        rule_files = [f for f in os.listdir(rules_path)
+                     if re.match(r'v\d+\.\d+\.\d+_\d+\.yaml$', f)]
 
-        # 否则使用最新版本（按版本号排序，取最后一个）
-        versions = sorted(constraint_rules.keys())
-        if versions:
-            latest_version = versions[-1]
-            return latest_version, constraint_rules[latest_version]
+        if not rule_files:
+            warning(f"[约束检查] 规则目录中没有规则文件: {rules_path}")
+            return "none", {"single_constraints": [], "multi_constraints": []}
 
-        return "none", {"single_constraints": [], "multi_constraints": []}
+        # 提取版本号（去掉 "v" 前缀和 ".yaml" 后缀）
+        # v1.3.0_20240208.yaml -> 1.3.0_20240208
+        available_versions = [f[1:-5] for f in rule_files]
+
+        # 确定要使用的版本
+        active_version = self.config.get("active_version")
+
+        if active_version:
+            # 使用指定版本
+            if active_version not in available_versions:
+                warning(f"[约束检查] 指定的规则版本不存在: {active_version}")
+                warning(f"[约束检查] 可用版本: {', '.join(sorted(available_versions))}")
+                return "none", {"single_constraints": [], "multi_constraints": []}
+            target_version = active_version
+        else:
+            # 使用最新版本（按版本号排序）
+            target_version = sorted(available_versions)[-1]
+
+        # 加载规则文件
+        rule_file = os.path.join(rules_path, f"v{target_version}.yaml")
+        try:
+            with open(rule_file, 'r', encoding='utf-8') as f:
+                rules = yaml.safe_load(f)
+
+            if not rules:
+                warning(f"[约束检查] 规则文件为空: {rule_file}")
+                return "none", {"single_constraints": [], "multi_constraints": []}
+
+            return target_version, rules
+
+        except Exception as e:
+            error(f"[约束检查] 加载规则文件失败: {rule_file}, 错误: {e}")
+            return "none", {"single_constraints": [], "multi_constraints": []}
 
     def _check_single_constraints(
         self, sections: List[Dict], rules: Dict, parser, context: dict
