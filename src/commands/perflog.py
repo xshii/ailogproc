@@ -53,11 +53,7 @@ class PerfLogCommand(Command):
             action="store_true",
             help="不生成可视化图表",
         )
-        parser.add_argument(
-            "--log-level",
-            choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-            help="设置日志级别",
-        )
+        self.add_log_level_argument(parser)
 
     def execute(self, args: argparse.Namespace) -> int:
         """执行性能分析"""

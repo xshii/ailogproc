@@ -29,11 +29,7 @@ class CfgLimitCommand(Command):
             "--report",
             help="约束检查报告输出路径（默认：output/constraint_report.json）",
         )
-        parser.add_argument(
-            "--log-level",
-            choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-            help="设置日志级别",
-        )
+        self.add_log_level_argument(parser)
 
     def execute(self, args: argparse.Namespace) -> int:
         """执行约束检查"""

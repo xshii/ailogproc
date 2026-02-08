@@ -30,6 +30,14 @@ class Command(ABC):
         """
         ...
 
+    def add_log_level_argument(self, parser: argparse.ArgumentParser) -> None:
+        """添加日志级别参数（通用辅助方法）"""
+        parser.add_argument(
+            "--log-level",
+            choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+            help="设置日志级别",
+        )
+
     @abstractmethod
     def execute(self, args: argparse.Namespace) -> int:
         """执行命令

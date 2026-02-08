@@ -2,13 +2,15 @@
 配置约束检查插件 - 验证配置是否满足约束条件
 """
 
-import os
 import json
-import yaml
+import os
 from datetime import datetime
-from typing import List, Dict
+from typing import Dict, List
+
+import yaml
+
 from src.plugins.base import Plugin
-from src.utils import info, warning, error, debug
+from src.utils import debug, error, info, warning
 
 
 class ConstraintCheckerPlugin(Plugin):
@@ -183,7 +185,7 @@ class ConstraintCheckerPlugin(Plugin):
             return "none", {"single_constraints": [], "multi_constraints": []}
 
     def _check_single_constraints(
-        self, sections: List[Dict], rules: Dict, parser, context: dict
+        self, _sections: List[Dict], rules: Dict, parser, context: dict
     ) -> List[Dict]:
         """检查单组约束"""
         violations = []
@@ -244,7 +246,10 @@ class ConstraintCheckerPlugin(Plugin):
                             "field": field,
                             "value": value,
                             "allowed": allowed_values,
-                            "message": f"[组{group_idx}] {rule_name}: 字段 '{field}' 的值 '{value}' 不在允许列表 {allowed_values} 中",
+                            "message": (
+                                f"[组{group_idx}] {rule_name}: 字段 '{field}' "
+                                f"的值 '{value}' 不在允许列表 {allowed_values} 中"
+                            ),
                         }
                     )
 
@@ -262,14 +267,17 @@ class ConstraintCheckerPlugin(Plugin):
                             "field": field,
                             "value": value,
                             "forbidden": forbidden_values,
-                            "message": f"[组{group_idx}] {rule_name}: 字段 '{field}' 的值 '{value}' 在禁止列表中",
+                            "message": (
+                                f"[组{group_idx}] {rule_name}: "
+                                f"字段 '{field}' 的值 '{value}' 在禁止列表中"
+                            ),
                         }
                     )
 
         return violations
 
     def _check_multi_constraints(
-        self, sections: List[Dict], rules: Dict, parser, context: dict
+        self, _sections: List[Dict], rules: Dict, parser, context: dict
     ) -> List[Dict]:
         """检查多组约束"""
         violations = []
@@ -459,9 +467,13 @@ class ConstraintCheckerPlugin(Plugin):
                 "rule": rule_name,
                 "when_group": start_idx + when_group,
                 "then_group": start_idx + then_group,
-                "message": f"[组{start_idx + when_group}->{start_idx + then_group}] {rule_name}: "
-                f"当组{start_idx + when_group}的 {when_field}={when_value} 时，"
-                f"组{start_idx + then_group}的 {then_field} 应在 {only_allow} 中，实际值为 {actual_then_value}",
+                "message": (
+                    f"[组{start_idx + when_group}->{start_idx + then_group}] "
+                    f"{rule_name}: 当组{start_idx + when_group}的 "
+                    f"{when_field}={when_value} 时，"
+                    f"组{start_idx + then_group}的 {then_field} 应在 "
+                    f"{only_allow} 中，实际值为 {actual_then_value}"
+                ),
             }
 
         # 检查 forbid

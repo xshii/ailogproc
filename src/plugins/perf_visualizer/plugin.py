@@ -59,7 +59,7 @@ class PerfVisualizerPlugin(Plugin):
         try:
             # 检查依赖
             try:
-                import plotly.graph_objects  # noqa: F401
+                import plotly.graph_objects  # pylint: disable=unused-import,import-outside-toplevel
             except ImportError:
                 error("[性能可视化] 需要安装 plotly: pip install plotly")
                 return None

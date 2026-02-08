@@ -40,11 +40,7 @@ class Cfg2ExcelCommand(Command):
             "--sheet",
             help="指定工作表名称",
         )
-        parser.add_argument(
-            "--log-level",
-            choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-            help="设置日志级别",
-        )
+        self.add_log_level_argument(parser)
 
     def execute(self, args: argparse.Namespace) -> int:
         """执行配置导出"""
