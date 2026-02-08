@@ -142,3 +142,10 @@ extraction_rules:
     performance:
       duration_field: "transfer_cycles"
       formula: "done_cycle - begin_cycle"
+
+# 未配对事件日志
+unpaired_log:
+  # 是否记录未配对事件到文件
+  enable: true
+  # 日志文件路径
+  path: "output/perf_unpaired.log"

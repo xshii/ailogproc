@@ -2,7 +2,10 @@
 性能日志解析器插件 - 基于多规则提取的性能日志解析
 """
 
+import os
+import json
 import re
+from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from src.plugins.base import Plugin
 from src.utils import info, warning, error
@@ -44,7 +47,7 @@ class PerfParserPlugin(Plugin):
         pairs, unpaired = self._correlate_events(events)
         info(f"[性能日志解析] 找到 {len(pairs)} 对关联事件")
 
-        # 对未匹配的事件打印告警
+        # 对未匹配的事件打印告警并记录日志
         if unpaired:
             warning(f"[性能日志解析] {len(unpaired)} 个事件未找到配对")
             for event in unpaired:
@@ -54,6 +57,9 @@ class PerfParserPlugin(Plugin):
                     f"行号={event['line_number']}, "
                     f"字段={event['fields']}"
                 )
+
+            # 记录到文件
+            self._log_unpaired_events(unpaired, log_file)
 
         # 统计信息
         statistics = self._compute_statistics(len(events), pairs, len(unpaired))
@@ -366,3 +372,43 @@ class PerfParserPlugin(Plugin):
         stats["by_execution_unit"] = units
 
         return stats
+
+    def _log_unpaired_events(self, unpaired: List[Dict], source_log_file: str) -> None:
+        """记录未配对事件到日志文件
+
+        Args:
+            unpaired: 未配对的事件列表
+            source_log_file: 源日志文件路径（用于生成日志文件名）
+        """
+        unpaired_config = self.config.get("unpaired_log", {})
+
+        if not unpaired_config.get("enable", True):
+            return
+
+        log_path = unpaired_config.get("path", "output/perf_unpaired.log")
+
+        try:
+            # 确保输出目录存在
+            os.makedirs(os.path.dirname(log_path), exist_ok=True)
+
+            # 追加写入日志
+            with open(log_path, "a", encoding="utf-8") as f:
+                # 写入时间戳和分隔符
+                f.write("\n" + "=" * 80 + "\n")
+                f.write(f"时间: {datetime.now().isoformat()}\n")
+                f.write(f"源文件: {source_log_file}\n")
+                f.write(f"未配对事件数: {len(unpaired)}\n")
+                f.write("=" * 80 + "\n\n")
+
+                # 写入每个未配对事件的详细信息
+                for idx, event in enumerate(unpaired, 1):
+                    f.write(f"[{idx}] {event['event_type'].upper()} 事件\n")
+                    f.write(f"    规则: {event['rule_name']}\n")
+                    f.write(f"    行号: {event['line_number']}\n")
+                    f.write(f"    字段: {json.dumps(event['fields'], ensure_ascii=False, indent=6)}\n")
+                    f.write("\n")
+
+            info(f"[性能日志解析] 未配对事件已记录到: {log_path}")
+
+        except Exception as e:
+            error(f"[性能日志解析] 记录未配对事件失败: {e}")
