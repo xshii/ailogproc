@@ -38,7 +38,7 @@ jobs:
         pip install -r requirements.txt
         pip install pylint
     - name: Run pylint
-      run: pylint src/ main.py --rcfile=.pylintrc --fail-under=9.0
+      run: pylint src/ main.py --rcfile=config/.pylintrc --fail-under=9.0
 
   # 功能测试（如果有）
   # test:

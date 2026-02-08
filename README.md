@@ -6,117 +6,170 @@
 
 ```
 ailogproc/
-├── README.md
-├── SETUP.md                   # 详细设置指南
-├── requirements.txt
-├── setup_venv.sh             # 环境设置脚本 (Linux/macOS)
-├── setup_venv.bat            # 环境设置脚本 (Windows)
 ├── main.py                   # 主程序入口
-├── config/
-│   ├── __init__.py
-│   ├── default_config.yaml   # YAML 配置文件
-│   └── default_config.py     # 配置加载模块
+├── Makefile                  # 开发命令快捷方式
+├── requirements.txt
+├── config/                   # 配置目录
+│   ├── default_config.yaml   # 应用配置
+│   ├── default_config.py     # 配置加载器
+│   ├── .pylintrc            # Pylint 质量检查配置
+│   ├── .coveragerc          # 测试覆盖率配置
+│   ├── pytest.ini           # Pytest 测试配置
+│   └── README.md            # 配置说明文档
 ├── src/
-│   ├── __init__.py
-│   ├── log_parser.py         # 日志解析模块
-│   ├── excel_processor.py    # Excel处理模块
-│   ├── workflow.py           # 业务流程模块
-│   ├── utils.py              # 工具函数模块
-│   └── plugins/              # 插件目录
-│       ├── __init__.py       # 插件注册表
-│       ├── base.py           # 插件基类
-│       └── auto_filename.py  # 自动文件名插件
-├── examples/
-│   ├── templates/            # Excel模板示例
-│   ├── logs/                 # 日志文件示例
-│   └── outputs/              # 输出结果
-└── tests/                    # 测试文件
+│   ├── utils/
+│   │   ├── logger.py        # 统一日志系统
+│   │   └── logger_config.yaml
+│   └── plugins/             # 插件目录
+│       ├── base.py          # 插件基类
+│       ├── config_parser/   # 配置解析插件
+│       ├── dld_configtmp/   # 模板下载插件
+│       ├── constraint_checker/ # 配置约束检查插件
+│       ├── excel_writer/    # Excel 写入插件
+│       └── auto_filename/   # 自动命名插件
+├── docs/                    # 文档目录
+│   ├── QUALITY_GATE.md      # 代码质量门限说明
+│   └── COVERAGE.md          # 测试覆盖率说明
+├── scripts/                 # 脚本目录
+│   ├── check_quality.sh     # 质量检查脚本
+│   └── check_coverage.sh    # 覆盖率检查脚本
+├── .github/workflows/       # CI/CD 工作流
+│   ├── pylint.yml          # 代码质量检查
+│   └── coverage.yml        # 测试覆盖率检查
+└── tests/                   # 测试文件
 ```
 
 ## 快速开始
 
-### 1. 设置环境
+### 1. 安装
 
 ```bash
-# Linux/macOS
-bash setup_venv.sh
+# 开发模式（推荐）
+pip install -e .
 
-# Windows
-setup_venv.bat
+# 或只安装依赖
+pip install -r requirements.txt
 ```
 
-### 2. 激活环境
+### 2. 运行程序
 
 ```bash
-# Linux/macOS
-source venv/bin/activate
+# 最简单：无参数运行，插件自动查找模板和 trace
+python main.py
 
-# Windows
-venv\Scripts\activate
+# 指定模板文件
+python main.py template.xlsx
+
+# 指定输出文件和工作表
+python main.py template.xlsx --output result.xlsx --sheet 配置表
+
+# 设置日志级别
+python main.py --log-level DEBUG
 ```
 
-### 3. 运行程序
+**自动查找规则（由插件实现）：**
+- **Excel 模板**：`templates/*.xlsx` → `examples/templates/*.xlsx`（`dld_configtmp` 插件）
+- **Trace 文件**：`logs/trace_*.txt` → `logs/*.txt` → `examples/logs/*.txt`（`config_parser` 插件）
 
-```bash
-# 基本使用
-python main.py examples/templates/template_a_column.xlsx examples/logs/sample_log_opsch.txt
+## 插件架构
 
-# 指定输出文件
-python main.py template.xlsx log.txt --output result.xlsx
+项目采用**层级插件架构**，插件按层级和依赖关系顺序执行：
 
-# 指定工作表
-python main.py template.xlsx log.txt --sheet 配置表
+| 层级 | 插件 | 依赖 | 功能 |
+|------|------|------|------|
+| **Level 0** | `dld_configtmp` | - | 下载/准备 Excel 模板 |
+| **Level 1** | `config_parser` | `dld_configtmp` | 解析 trace 日志文件 |
+| **Level 2** | `constraint_checker` | `config_parser` | 检查配置约束条件 |
+| **Level 3** | `excel_writer` | `dld_configtmp`, `config_parser`, `constraint_checker` | 将数据写入 Excel 表格 |
+| **Level 4** | `auto_filename` | `excel_writer` | 根据内容自动重命名输出文件 |
+
+**插件依赖链：**
 ```
-
-### 4. 退出环境
-
-```bash
-deactivate
+dld_configtmp (Level 0)
+  └─> config_parser (Level 1)
+        └─> constraint_checker (Level 2)
+              └─> excel_writer (Level 3)
+                    └─> auto_filename (Level 4)
 ```
-
-## 配置
-
-### YAML 配置文件
-
-所有配置在 `config/default_config.yaml` 中，包括：
-- 关键字映射 (`keyword_mapping`)
-- 字段名映射 (`field_name_mapping`)
-- 特殊前缀处理 (`special_prefix`)
-- 顶格表格配置 (`top_table`)
-- 插件配置 (`auto_filename` 等)
-
-### 插件系统
-
-项目采用**层级插件架构**，插件按层级顺序执行。
-
-**插件层级：**
-- **Level 1: Extractor（提取层）** - 从日志提取信息
-  - `config_extractor` - 提取配置
-- **Level 2: Processor（处理层）** - 处理提取的数据
-  - `excel_writer` - 写入Excel
-  - `constraint_validator` - 约束检查（未来）
-- **Level 3: 小插件** - 轻量级收尾工作
-  - `auto_filename` - 自动重命名
 
 **添加新插件：**
-1. 创建 `src/plugins/your_plugin.py`（继承 Plugin 基类）
-2. 设置 `level` 和 `dependencies`
+1. 创建插件目录 `src/plugins/your_plugin/`
+2. 实现 `plugin.py`（继承 `Plugin` 基类，设置 `level` 和 `dependencies`）
 3. 在 `src/plugins/__init__.py` 注册
-4. 在 `config/default_config.yaml` 添加配置
+4. 在插件目录创建 `config.yaml` 配置文件
 
-详见 [SETUP.md](SETUP.md)
+详见：[插件依赖关系文档](docs/PLUGIN_DEPENDENCIES.md)
+
+## 配置文件
+
+所有配置文件统一放在 `config/` 目录：
+
+| 文件 | 用途 |
+|------|------|
+| `default_config.yaml` | 应用配置（插件、字段映射等） |
+| `.pylintrc` | Pylint 代码质量检查配置 |
+| `.coveragerc` | 测试覆盖率配置 |
+| `pytest.ini` | Pytest 测试框架配置 |
+
+详见 [config/README.md](config/README.md)
+
+## 开发
+
+### 常用命令
+
+```bash
+# 运行测试
+make test
+
+# 代码质量检查（Pylint）
+make quality
+
+# 测试覆盖率检查
+make coverage
+
+# 运行所有检查
+make all
+
+# 清理临时文件
+make clean
+
+# 查看覆盖率报告
+make report
+```
+
+### 代码质量门限
+
+本项目设置了严格的质量门限，CI 会自动检查：
+
+| 指标 | 门限 | 状态 |
+|------|------|------|
+| **Pylint 分数** | ≥ 9.5/10 | ✅ 9.70/10 |
+| **测试覆盖率** | ≥ 70% | ⚠️ 68% |
+
+详见：
+- [代码质量门限文档](docs/QUALITY_GATE.md)
+- [测试覆盖率文档](docs/COVERAGE.md)
+
+### 日志系统
+
+项目使用统一的日志系统 (`src/utils/logger.py`)：
+- 支持控制台和文件输出
+- 自动日志轮转（1000MB，保留 5 个备份）
+- 日志文件名包含时间戳：`app_YYYYMMDD_HHMMSS.log`
+- 配置文件：`src/utils/logger_config.yaml`
 
 ## 功能特性
 
+✅ 层级插件架构
 ✅ 顶格表格处理
 ✅ 多子表支持
-✅ 多 TopConfig 自动分页
 ✅ 智能字段匹配
-✅ 合并单元格支持
 ✅ 自动文件命名
-✅ 插件化架构
 ✅ YAML 配置驱动
-✅ Python venv 虚拟环境
+✅ 统一日志系统
+✅ 代码质量门限 (Pylint 9.5+)
+✅ 测试覆盖率检查 (70%+)
+✅ CI/CD 自动化
 
 ## 许可证
 

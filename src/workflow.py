@@ -5,18 +5,20 @@
 from src.plugins import load_plugins, run_plugins
 
 
-def process_log_to_excel(excel_file, log_file, output_file=None, sheet_name=None):
+def process_log_to_excel(excel_file, trace_file, output_file=None, sheet_name=None):
     """
-    主处理流程：通过插件系统解析日志并填充到Excel
+    主处理流程：通过插件系统解析trace并填充到Excel
 
     插件执行顺序：
-    Level 1: config_extractor - 提取配置
-    Level 2: excel_writer - 写入Excel
-    Level 3: auto_filename - 自动重命名（小插件）
+    Level 0: dld_configtmp - 下载/准备模板
+    Level 1: config_parser - 解析trace文件
+    Level 2: constraint_checker - 检查配置约束
+    Level 3: excel_writer - 写入Excel
+    Level 4: auto_filename - 自动重命名（小插件）
 
     Args:
-        excel_file: Excel模板文件路径
-        log_file: 日志文件路径
+        excel_file: Excel模板文件路径（如果 dld_configtmp 启用则可能被覆盖）
+        trace_file: trace文件路径
         output_file: 输出文件路径（可选）
         sheet_name: 工作表名称（可选）
 
@@ -25,7 +27,7 @@ def process_log_to_excel(excel_file, log_file, output_file=None, sheet_name=None
     """
     # 准备初始上下文
     initial_context = {
-        "log_file": log_file,
+        "trace_file": trace_file,
         "excel_file": excel_file,
         "output_file": output_file,
         "sheet_name": sheet_name,

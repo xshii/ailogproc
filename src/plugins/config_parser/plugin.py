@@ -1,56 +1,129 @@
 """
-配置提取插件 - 从日志中提取配置信息
+配置解析插件 - 从trace文件中提取配置信息
 """
 
+import os
 import re
+from pathlib import Path
 from src.plugins.base import Plugin
 
 
-class ConfigExtractorPlugin(Plugin):
-    """配置提取插件 - Level 1 (Extractor)"""
+from src.utils import info
+
+
+class ConfigParserPlugin(Plugin):
+    """配置解析插件 - Level 1 (Extractor)"""
 
     level = 1  # 提取层
-    dependencies = []  # 无依赖，第一层插件
+    dependencies = ["dld_configtmp"]  # 依赖模板下载插件（确保模板准备好）
 
     def execute(self, context: dict) -> dict:
-        """从日志文件中提取配置信息
+        """从trace文件中提取配置信息
 
         Args:
-            context: 上下文字典，需要包含：
-                - log_file: 日志文件路径
+            context: 上下文字典，可能包含：
+                - trace_file: trace文件路径（优先使用）
 
         Returns:
             {
                 'sections': 解析出的配置块列表,
-                'parser': LogParser实例（供其他插件使用）
+                'parser': ConfigParser实例（供其他插件使用）,
+                'trace_file': 实际使用的trace文件路径
             }
         """
-        log_file = context.get("log_file")
-        if not log_file:
-            raise ValueError("config_extractor: context 中缺少 'log_file'")
+        # 优先使用 context 中的 trace_file，否则从配置获取默认路径
+        trace_file = context.get("trace_file")
 
-        print(f"[配置提取] 解析日志文件: {log_file}")
+        if not trace_file:
+            trace_file = self._get_default_trace_file()
 
+        if not trace_file:
+            raise ValueError("config_parser: 未指定trace文件，且配置中未设置默认路径")
+
+        info(f"[配置解析] 解析trace文件: {trace_file}")
         # 创建解析器并解析（传递配置）
-        parser = LogParser(log_file, self.config)
+        parser = ConfigParser(trace_file, self.config)
         sections = parser.parse()
 
-        print(f"[配置提取] ✓ 找到 {len(sections)} 个配置块")
-
+        info(f"[配置解析] ✓ 找到 {len(sections)} 个配置块")
         return {
             "sections": sections,
             "parser": parser,  # 返回 parser 实例供其他插件使用
+            "trace_file": trace_file,  # 返回实际使用的trace路径
         }
+
+    def _get_default_trace_file(self) -> str | None:
+        """从配置获取默认trace文件路径（支持多目录和多模式查找）"""
+        default_config = self.config.get("default_trace", {})
+        path = default_config.get("path")
+
+        # 如果配置了具体路径
+        if path:
+            # 检查是文件还是目录
+            if os.path.isfile(path):
+                return path
+
+            if os.path.isdir(path):
+                # 是目录，查找最新trace
+                if default_config.get("auto_find_latest", True):
+                    patterns = default_config.get("file_patterns", ["*.txt"])
+                    if isinstance(patterns, str):
+                        patterns = [patterns]
+                    return self._find_latest_trace_multi_pattern(path, patterns)
+
+        # 没有配置 path，使用 search_dirs（支持多个目录）
+        search_dirs = default_config.get(
+            "search_dirs", [default_config.get("search_dir")]
+        )
+        if isinstance(search_dirs, str):
+            search_dirs = [search_dirs]
+
+        patterns = default_config.get("file_patterns", ["*.txt"])
+        if isinstance(patterns, str):
+            patterns = [patterns]
+
+        # 按优先级遍历搜索目录和模式
+        for search_dir in search_dirs:
+            if not search_dir or not os.path.isdir(search_dir):
+                continue
+
+            if default_config.get("auto_find_latest", True):
+                trace_file = self._find_latest_trace_multi_pattern(search_dir, patterns)
+                if trace_file:
+                    return trace_file
+
+        return None
+
+    def _find_latest_trace_multi_pattern(
+        self, directory: str, patterns: list
+    ) -> str | None:
+        """在目录中使用多个模式查找最新的trace文件"""
+        for pattern in patterns:
+            trace_file = self._find_latest_trace(directory, pattern)
+            if trace_file:
+                return trace_file
+        return None
+
+    def _find_latest_trace(self, directory: str, pattern: str) -> str | None:
+        """在目录中查找最新的trace文件"""
+        trace_files = list(Path(directory).glob(pattern))
+
+        if not trace_files:
+            return None
+
+        # 按修改时间排序，返回最新的
+        latest = max(trace_files, key=lambda p: p.stat().st_mtime)
+        return str(latest)
 
 
 # ==================== 内部类和工具函数 ====================
 
 
-class LogParser:
-    """解析日志文件，提取配置块和键值对"""
+class ConfigParser:
+    """解析trace文件，提取配置块和键值对"""
 
-    def __init__(self, log_file, config: dict):
-        self.log_file = log_file
+    def __init__(self, trace_file, config: dict):
+        self.trace_file = trace_file
         self.config = config
         self.sections = []  # 存储所有配置块
 
@@ -59,10 +132,10 @@ class LogParser:
         self.field_pattern = config["log_patterns"]["field"]
 
     def parse(self):
-        """解析日志文件"""
+        """解析trace文件"""
         current_section = None
 
-        with open(self.log_file, "r", encoding="utf-8") as f:
+        with open(self.trace_file, "r", encoding="utf-8") as f:
             for line in f:
                 line = line.rstrip("\n")
 

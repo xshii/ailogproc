@@ -1,0 +1,159 @@
+# 性能日志解析器配置
+enable: true
+
+# 日志文件路径（支持多文件）
+# 方式1：单个文件（向后兼容）
+# log_file: "/path/to/perf.log"
+
+# 方式2：多个文件（用于性能对比）
+log_files:
+  - label: "device0"
+    path: null  # null 表示从命令行或上下文获取
+  # - label: "device1"
+  #   path: "/path/to/device1.log"
+
+# 提取规则组（支持多组不同的模式）
+extraction_rules:
+  # 第1组：通用任务规则
+  - name: "通用任务"
+    description: "通用的任务开始/结束匹配（支持算子执行和数据搬移）"
+
+    # 开始行匹配规则
+    start_pattern:
+      # 正则表达式（使用命名捕获组）
+      regex: '开始.*ID:\s*(?P<task_id>\w+).*单元:\s*(?P<unit>\w+).*device:\s*(?P<device>\w+).*cycle:\s*(?P<cycle_start>\d+)'
+      # 字段定义
+      fields:
+        task_id:
+          type: "string"
+          required: true
+        unit:
+          type: "string"
+          required: true
+        device:
+          type: "string"
+          required: false
+        cycle_start:
+          type: "int"
+          required: true
+
+    # 结束行匹配规则
+    end_pattern:
+      regex: '完成.*ID:\s*(?P<task_id>\w+).*单元:\s*(?P<unit>\w+).*device:\s*(?P<device>\w+).*cycle:\s*(?P<cycle_end>\d+)'
+      fields:
+        task_id:
+          type: "string"
+          required: true
+        unit:
+          type: "string"
+          required: true
+        device:
+          type: "string"
+          required: false
+        cycle_end:
+          type: "int"
+          required: true
+
+    # 匹配条件（开始和结束必须满足这些字段相同）
+    match_fields:
+      - "task_id"
+      - "unit"
+
+    # 性能计算
+    performance:
+      # 耗时字段名
+      duration_field: "duration_cycles"
+      # 计算公式：end字段 - start字段
+      formula: "cycle_end - cycle_start"
+
+  # 第2组：算子执行规则（示例）
+  - name: "算子执行"
+    description: "AI算子的执行追踪"
+
+    start_pattern:
+      regex: 'OP_START.*opType:\s*(?P<op_type>\w+).*opId:\s*(?P<op_id>\d+).*core:\s*(?P<core>\w+).*cycle:\s*(?P<start_cycle>\d+)'
+      fields:
+        op_type:
+          type: "string"
+          required: true
+        op_id:
+          type: "string"
+          required: true
+        core:
+          type: "string"
+          required: true
+        start_cycle:
+          type: "int"
+          required: true
+
+    end_pattern:
+      regex: 'OP_END.*opType:\s*(?P<op_type>\w+).*opId:\s*(?P<op_id>\d+).*core:\s*(?P<core>\w+).*cycle:\s*(?P<end_cycle>\d+)'
+      fields:
+        op_type:
+          type: "string"
+          required: true
+        op_id:
+          type: "string"
+          required: true
+        core:
+          type: "string"
+          required: true
+        end_cycle:
+          type: "int"
+          required: true
+
+    match_fields:
+      - "op_type"
+      - "op_id"
+      - "core"
+
+    performance:
+      duration_field: "execution_cycles"
+      formula: "end_cycle - start_cycle"
+
+  # 第3组：数据传输规则（示例）
+  - name: "数据传输"
+    description: "数据传输的开始和结束"
+
+    start_pattern:
+      regex: 'TRANS_BEGIN.*transId:\s*(?P<trans_id>\w+).*from:\s*(?P<src>\w+).*to:\s*(?P<dst>\w+).*cycle:\s*(?P<begin_cycle>\d+)'
+      fields:
+        trans_id:
+          type: "string"
+          required: true
+        src:
+          type: "string"
+          required: false
+        dst:
+          type: "string"
+          required: false
+        begin_cycle:
+          type: "int"
+          required: true
+
+    end_pattern:
+      regex: 'TRANS_DONE.*transId:\s*(?P<trans_id>\w+).*cycle:\s*(?P<done_cycle>\d+).*size:\s*(?P<data_size>\d+)'
+      fields:
+        trans_id:
+          type: "string"
+          required: true
+        done_cycle:
+          type: "int"
+          required: true
+        data_size:
+          type: "int"
+          required: false
+
+    match_fields:
+      - "trans_id"
+
+    performance:
+      duration_field: "transfer_cycles"
+      formula: "done_cycle - begin_cycle"
+
+# 未配对事件日志
+unpaired_log:
+  # 是否记录未配对事件到文件
+  enable: true
+  # 日志文件路径
+  path: "output/perf_unpaired.log"

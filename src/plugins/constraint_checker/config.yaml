@@ -1,0 +1,30 @@
+# 配置约束检查插件配置
+enable: true
+
+# 使用的规则版本（不指定则使用最新版本）
+# 版本格式示例: "1.3.0_20240208"
+# null 表示自动使用 rules/ 目录中的最新版本
+active_version: null
+
+# 规则文件目录（相对于插件目录）
+# 默认: "rules"
+rules_dir: "rules"
+
+# 检查模式
+# check_only: true  - 仅检查约束，不执行后续的 excel_writer 和 auto_filename
+# check_only: false - 检查通过后继续执行后续插件（默认）
+check_only: false
+
+# 报告生成
+# 是否生成 JSON 报告
+generate_report: true
+# 报告文件路径（支持相对路径和绝对路径）
+# null 表示使用默认路径：output/constraint_report.json
+report_path: null
+
+# top 表关键字配置
+# 优先级：
+#   1. 本配置文件的 top_keyword（如果指定）
+#   2. excel_writer_config 的 top_table.log_keyword
+#   3. 默认值 "opSch"
+# top_keyword: "opSch"  # 取消注释以覆盖默认行为

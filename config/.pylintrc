@@ -7,6 +7,16 @@
 disable=
     C0114,  # missing-module-docstring
     C0115,  # missing-class-docstring
+    W0718,  # broad-exception-caught - 允许捕获 Exception，但要求必须记录日志
+
+# 启用的检查（确保这些不被禁用）
+enable=
+    W0702,  # bare-except - 禁止裸 except:
+    W0706,  # try-except-raise - 检查无用的 try-except-raise
+    W0707,  # raise-missing-from - 重新抛出异常时需要 from
+
+# 注意：Pylint 没有直接检查"except 块必须记录日志"的规则
+# 建议：在代码审查中确保 except Exception 块都有日志记录
 
 [FORMAT]
 # 每行最大字符数

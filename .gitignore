@@ -18,6 +18,10 @@ ENV/
 /logs/*
 !/logs/README.md
 
+# 模板目录（由插件管理，不提交生成的文件）
+/templates/*
+!/templates/.gitkeep
+
 # 输出文件
 examples/outputs/*.xlsx
 !examples/outputs/.gitkeep
@@ -26,3 +30,16 @@ examples/outputs/*.xlsx
 *.tmp
 *.log
 .DS_Store
+
+# 测试和覆盖率报告
+htmlcov/
+.coverage
+coverage.json
+coverage.xml
+.pytest_cache/
+*.pyc
+__pycache__/
+
+# Pylint 报告
+pylint_output.txt
+output/

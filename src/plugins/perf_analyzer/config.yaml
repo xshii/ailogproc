@@ -1,0 +1,43 @@
+# 性能数据分析器配置
+enable: true
+
+# 硬件配置
+hardware:
+  # 时钟频率（GHz）
+  frequency_ghz: 1.0
+
+  # 理论峰值算力（TFLOPS）
+  peak_tflops: null  # null 表示不计算 MFU
+
+# 分析选项
+analysis:
+  # 是否计算统计指标
+  compute_statistics: true
+
+  # 是否计算 MFU（需要配置 peak_tflops）
+  compute_mfu: false
+
+# 分组分析
+grouping:
+  # 是否按执行单元分组
+  by_execution_unit: true
+  
+  # 是否按时间窗口分组
+  by_time_window: false
+  
+  # 时间窗口大小（秒）
+  time_window_size: 60
+
+# 输出报告
+reporting:
+  # 是否生成JSON报告
+  generate_json: true
+  
+  # JSON报告路径
+  json_path: "output/perf_analysis.json"
+  
+  # 是否生成CSV报告
+  generate_csv: true
+  
+  # CSV报告路径
+  csv_path: "output/perf_analysis.csv"
