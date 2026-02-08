@@ -160,7 +160,6 @@ class PerfVisualizerPlugin(Plugin):
 
         # 按执行单元分组
         units = sorted(set(item["unit"] for item in timeline_data))
-        unit_to_row = {unit: idx for idx, unit in enumerate(units)}
 
         # 获取所有来源
         sources = sorted(set(item["source"] for item in timeline_data))
