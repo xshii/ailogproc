@@ -3,10 +3,12 @@
 """
 
 import os
+import json
 import yaml
+from datetime import datetime
 from typing import List, Dict
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import info, warning, error, debug
 
 
 class ConstraintCheckerPlugin(Plugin):
@@ -84,6 +86,13 @@ class ConstraintCheckerPlugin(Plugin):
                 "violations": [],
                 "version": version,
             }
+
+        # 生成 JSON 报告
+        if self.config.get("generate_report", False):
+            report_path = self._generate_report(result, context)
+            if report_path:
+                result["report_path"] = report_path
+                debug(f"[约束检查] 报告已生成: {report_path}")
 
         # 如果是仅检查模式，设置停止标志
         if check_only:
@@ -570,3 +579,63 @@ class ConstraintCheckerPlugin(Plugin):
 
         # 3. 使用默认值
         return "opSch"
+
+    def _generate_report(self, result: dict, context: dict) -> str:
+        """生成极简 JSON 报告
+
+        Args:
+            result: 检查结果
+            context: 上下文字典
+
+        Returns:
+            报告文件路径，失败返回 None
+        """
+        try:
+            # 确定报告路径
+            report_path = self.config.get("report_path")
+            if not report_path:
+                # 默认路径：output/constraint_report.json
+                output_dir = "output"
+                os.makedirs(output_dir, exist_ok=True)
+                report_path = os.path.join(output_dir, "constraint_report.json")
+
+            # 构建极简报告
+            report = {
+                "timestamp": datetime.now().isoformat(),
+                "passed": result["validation_passed"],
+                "version": result["version"],
+                "violations": len(result["violations"]),
+            }
+
+            # 如果有违规，添加违规摘要
+            if result["violations"]:
+                # 按类型分组统计
+                by_type = {}
+                for v in result["violations"]:
+                    vtype = v.get("type", "unknown")
+                    by_type[vtype] = by_type.get(vtype, 0) + 1
+
+                report["summary"] = by_type
+
+                # 添加违规列表（极简格式）
+                report["errors"] = [
+                    {
+                        "type": v.get("type"),
+                        "rule": v.get("rule"),
+                        "field": v.get("field"),
+                        "value": v.get("value"),
+                        "message": v.get("message"),
+                    }
+                    for v in result["violations"]
+                ]
+
+            # 写入文件
+            with open(report_path, "w", encoding="utf-8") as f:
+                json.dump(report, f, ensure_ascii=False, indent=2)
+
+            info(f"[约束检查] 报告已保存: {report_path}")
+            return report_path
+
+        except Exception as e:
+            error(f"[约束检查] 生成报告失败: {e}")
+            return None
