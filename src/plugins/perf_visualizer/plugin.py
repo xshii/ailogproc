@@ -59,9 +59,10 @@ class PerfVisualizerPlugin(Plugin):
         try:
             # 检查依赖
             try:
-                import plotly.graph_objects  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                from pyecharts import options as opts  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                from pyecharts.charts import Bar  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
             except ImportError:
-                error("[性能可视化] 需要安装 plotly: pip install plotly")
+                error("[性能可视化] 需要安装 pyecharts: pip install pyecharts")
                 return None
 
             # 准备数据
@@ -72,12 +73,12 @@ class PerfVisualizerPlugin(Plugin):
                 return None
 
             # 创建图表
-            fig = self._create_timeline_figure(timeline_data, context)
+            chart = self._create_timeline_figure(timeline_data, context)
 
             # 保存
             output_path = self.config["gantt"]["output_path"]
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            fig.write_html(output_path)
+            chart.render(output_path)
 
             info(f"[性能可视化] 算子执行时间线已保存: {output_path}")
             return output_path
@@ -153,141 +154,114 @@ class PerfVisualizerPlugin(Plugin):
         return None
 
     def _create_timeline_figure(self, timeline_data: List[Dict], context: dict):
-        """创建时间线图表（升腾Studio风格）"""
-        import plotly.graph_objects as go
+        """创建时间线图表（PyEcharts版本，使用堆叠Bar模拟甘特图）"""
+        from pyecharts import options as opts
+        from pyecharts.charts import Bar
 
         config = self.config["gantt"]
 
         # 按执行单元分组
         units = sorted(set(item["unit"] for item in timeline_data))
 
-        # 获取所有来源
-        sources = sorted(set(item["source"] for item in timeline_data))
-
-        # 准备颜色映射（按单元 + 来源）
+        # 准备颜色映射
         colors = self._get_color_scheme(len(units))
         unit_colors = {
             unit: colors[idx % len(colors)] for idx, unit in enumerate(units)
         }
 
-        # 为不同来源分配不同的透明度或色调
-        source_opacity = {}
-        for idx, source in enumerate(sources):
-            source_opacity[source] = 1.0 - (
-                idx * 0.3
-            )  # 第一个来源 1.0，第二个 0.7，等等
+        # 创建Bar图表（横向）
+        bar = Bar(init_opts=opts.InitOpts(
+            width=f"{config.get('width', 1400)}px",
+            height=f"{config.get('height', 600)}px",
+            theme="light"
+        ))
 
-        # 创建图表
-        fig = go.Figure()
+        # 设置Y轴为执行单元
+        bar.add_xaxis(xaxis_data=units)
 
-        # 添加每个算子的执行条
-        for item in timeline_data:
+        # 为每个算子创建两个系列：空白占位 + 实际耗时
+        # 这样可以模拟甘特图的效果（通过堆叠实现偏移）
+        for idx, item in enumerate(timeline_data):
             unit = item["unit"]
-            source = item["source"]
+            unit_idx = units.index(unit)
+            color = unit_colors[unit]
 
-            # 悬停信息
-            hover_text = (
-                f"<b>来源:</b> {source}<br>"
-                f"<b>算子ID:</b> {item['operator_id']}<br>"
-                f"<b>执行单元:</b> {unit}<br>"
-                f"<b>开始Cycle:</b> {item['start_cycle']}<br>"
-                f"<b>结束Cycle:</b> {item['end_cycle']}<br>"
-                f"<b>耗时:</b> {item['duration_cycles']} cycles<br>"
-                f"<b>日志行:</b> {item['start_line']}-{item['end_line']}<br>"
-                f"<b>规则:</b> {item.get('rule_name', 'N/A')}"
+            # 创建占位数据（模拟起始位置）
+            placeholder_data = [0] * len(units)
+            placeholder_data[unit_idx] = item["start_cycle"]
+
+            # 创建实际数据（耗时）
+            duration_data = [None] * len(units)
+            duration_data[unit_idx] = item["duration_cycles"]
+
+            # 添加占位系列（不显示在图例中）
+            bar.add_yaxis(
+                series_name=f"_placeholder_{idx}",
+                y_axis=placeholder_data,
+                stack=f"stack_{unit_idx}",
+                itemstyle_opts=opts.ItemStyleOpts(opacity=0),
+                label_opts=opts.LabelOpts(is_show=False),
             )
 
-            # 添加performance信息
-            if item["performance"]:
-                hover_text += "<br><b>性能指标:</b>"
-                for key, value in item["performance"].items():
-                    hover_text += f"<br>  {key}: {value}"
-
-            # 根据来源调整颜色透明度
-            base_color = unit_colors[unit]
-            opacity = source_opacity.get(source, 1.0)
-
-            fig.add_trace(
-                go.Bar(
-                    name=f"{unit} ({source})",
-                    x=[item["duration_cycles"]],
-                    y=[unit],
-                    base=[item["start_cycle"]],
-                    orientation="h",
-                    marker=dict(
-                        color=base_color,
-                        opacity=opacity,
-                        line=dict(color="white", width=0.5),
-                    ),
-                    hovertemplate=hover_text + "<extra></extra>",
-                    showlegend=False,
-                )
+            # 添加实际数据系列
+            tooltip_content = (
+                f"算子ID: {item['operator_id']}<br/>"
+                f"来源: {item['source']}<br/>"
+                f"开始Cycle: {item['start_cycle']}<br/>"
+                f"结束Cycle: {item['end_cycle']}<br/>"
+                f"耗时: {item['duration_cycles']} cycles<br/>"
+                f"日志行: {item['start_line']}-{item['end_line']}"
             )
 
-        # 更新布局（升腾Studio风格）
-        fig.update_layout(
-            title=dict(
-                text=config["title"], font=dict(size=20, color="#2c3e50"), x=0.5
+            bar.add_yaxis(
+                series_name=f"{item['operator_id']}",
+                y_axis=duration_data,
+                stack=f"stack_{unit_idx}",
+                itemstyle_opts=opts.ItemStyleOpts(color=color),
+                label_opts=opts.LabelOpts(is_show=False),
+                tooltip_opts=opts.TooltipOpts(
+                    formatter=tooltip_content
+                ),
+            )
+
+        # 配置图表选项
+        bar.set_global_opts(
+            title_opts=opts.TitleOpts(
+                title=config["title"],
+                pos_left="center",
+                title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20)
             ),
-            xaxis=dict(
-                title="Cycle",
-                titlefont=dict(size=14, color="#34495e"),
-                showgrid=True,
-                gridcolor="#ecf0f1",
-                zeroline=True,
-                zerolinecolor="#bdc3c7",
-                tickfont=dict(size=12),
+            xaxis_opts=opts.AxisOpts(
+                name="执行单元",
+                axislabel_opts=opts.LabelOpts(font_size=12, rotate=0),
             ),
-            yaxis=dict(
-                title="执行单元",
-                titlefont=dict(size=14, color="#34495e"),
-                categoryorder="array",
-                categoryarray=units,
-                tickfont=dict(size=12),
+            yaxis_opts=opts.AxisOpts(
+                name="Cycle",
+                name_location="middle",
+                name_gap=50,
+                name_textstyle_opts=opts.TextStyleOpts(color="#34495e", font_size=14),
+                axislabel_opts=opts.LabelOpts(font_size=12),
+                splitline_opts=opts.SplitLineOpts(is_show=True),
             ),
-            height=config.get("height", 600),
-            width=config.get("width", 1400),
-            barmode="overlay",
-            bargap=0.2,
-            plot_bgcolor="white",
-            paper_bgcolor="white",
-            hovermode="closest",
-            # 添加工具栏按钮
-            modebar=dict(
-                bgcolor="rgba(255,255,255,0.7)",
-                color="#7f8c8d",
-                activecolor="#2980b9",
+            tooltip_opts=opts.TooltipOpts(
+                trigger="item",
+                axis_pointer_type="shadow"
             ),
+            legend_opts=opts.LegendOpts(
+                is_show=False  # 隐藏图例，因为每个算子都是一个系列
+            ),
+            datazoom_opts=[
+                opts.DataZoomOpts(type_="slider", orient="vertical"),
+                opts.DataZoomOpts(type_="slider", orient="horizontal"),
+                opts.DataZoomOpts(type_="inside", orient="vertical"),
+                opts.DataZoomOpts(type_="inside", orient="horizontal"),
+            ],
         )
 
-        # 添加图例（显示执行单元）
-        for unit in units:
-            fig.add_trace(
-                go.Scatter(
-                    x=[None],
-                    y=[None],
-                    mode="markers",
-                    name=unit,
-                    marker=dict(size=10, color=unit_colors[unit]),
-                    showlegend=True,
-                )
-            )
+        # 反转坐标轴以获得横向甘特图效果
+        bar.reversal_axis()
 
-        fig.update_layout(
-            legend=dict(
-                title="执行单元",
-                orientation="v",
-                yanchor="top",
-                y=1,
-                xanchor="left",
-                x=1.02,
-                bgcolor="rgba(255,255,255,0.8)",
-                bordercolor="#bdc3c7",
-                borderwidth=1,
-            )
-        )
-
-        return fig
+        return bar
 
     def _get_color_scheme(self, num_colors: int) -> List[str]:
         """获取配色方案"""
@@ -330,7 +304,8 @@ class PerfVisualizerPlugin(Plugin):
     def _generate_histogram(self, pairs: List[Dict]) -> str:
         """生成耗时分布直方图（基于cycle）"""
         try:
-            import plotly.graph_objects as go
+            from pyecharts import options as opts
+            from pyecharts.charts import Bar
 
             # 提取耗时数据（cycles）
             durations = []
@@ -348,47 +323,71 @@ class PerfVisualizerPlugin(Plugin):
                 return None
 
             config = self.config.get("histogram", {})
+            bins = config.get("bins", 30)
 
-            # 创建直方图
-            fig = go.Figure(
-                data=[
-                    go.Histogram(
-                        x=durations,
-                        nbinsx=config.get("bins", 30),
-                        marker=dict(color="#3498db", line=dict(color="white", width=1)),
-                    )
-                ]
+            # 计算直方图分组
+            min_val = min(durations)
+            max_val = max(durations)
+            bin_width = (max_val - min_val) / bins
+
+            # 创建分组区间
+            bin_ranges = []
+            bin_counts = [0] * bins
+            for i in range(bins):
+                bin_start = min_val + i * bin_width
+                bin_end = bin_start + bin_width
+                bin_ranges.append(f"{int(bin_start)}-{int(bin_end)}")
+
+                # 统计每个区间的数量
+                for duration in durations:
+                    if bin_start <= duration < bin_end or (i == bins - 1 and duration == bin_end):
+                        bin_counts[i] += 1
+
+            # 创建柱状图
+            bar = Bar(init_opts=opts.InitOpts(
+                width=f"{config.get('width', 900)}px",
+                height=f"{config.get('height', 500)}px",
+                theme="light"
+            ))
+
+            bar.add_xaxis(xaxis_data=bin_ranges)
+            bar.add_yaxis(
+                series_name="数量",
+                y_axis=bin_counts,
+                itemstyle_opts=opts.ItemStyleOpts(color="#3498db"),
+                label_opts=opts.LabelOpts(is_show=False),
             )
 
-            fig.update_layout(
-                title=dict(
-                    text=config.get("title", "算子耗时分布"),
-                    font=dict(size=18, color="#2c3e50"),
-                    x=0.5,
+            bar.set_global_opts(
+                title_opts=opts.TitleOpts(
+                    title=config.get("title", "算子耗时分布"),
+                    pos_left="center",
+                    title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=18)
                 ),
-                xaxis=dict(
-                    title="耗时 (cycles)",
-                    titlefont=dict(size=14),
-                    showgrid=True,
-                    gridcolor="#ecf0f1",
+                xaxis_opts=opts.AxisOpts(
+                    name="耗时 (cycles)",
+                    name_location="middle",
+                    name_gap=30,
+                    axislabel_opts=opts.LabelOpts(rotate=45, font_size=10),
+                    splitline_opts=opts.SplitLineOpts(is_show=True),
                 ),
-                yaxis=dict(
-                    title="数量",
-                    titlefont=dict(size=14),
-                    showgrid=True,
-                    gridcolor="#ecf0f1",
+                yaxis_opts=opts.AxisOpts(
+                    name="数量",
+                    name_location="middle",
+                    name_gap=40,
+                    splitline_opts=opts.SplitLineOpts(is_show=True),
                 ),
-                height=config.get("height", 500),
-                width=config.get("width", 900),
-                plot_bgcolor="white",
-                paper_bgcolor="white",
-                showlegend=False,
+                tooltip_opts=opts.TooltipOpts(
+                    trigger="axis",
+                    axis_pointer_type="shadow"
+                ),
+                legend_opts=opts.LegendOpts(is_show=False),
             )
 
             # 保存
             output_path = config.get("output_path", "output/perf_histogram.html")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            fig.write_html(output_path)
+            bar.render(output_path)
 
             info(f"[性能可视化] 耗时分布图已保存: {output_path}")
             return output_path

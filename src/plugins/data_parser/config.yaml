@@ -1,0 +1,84 @@
+# 16进制数据解析器配置
+enable: true
+
+# 数据源配置
+source:
+  type: "log_file"  # log_file (从日志提取) 或 direct (直接输入)
+  block_mode: true  # true: 多数据块模式，false: 单一数据流
+
+  # 数据块标记
+  block_markers:
+    type_marker: "@type:"       # 数据类型标记
+    address_marker: "@address:" # 内存地址标记
+    size_marker: "@size:"       # 大小标记（可选）
+    name_marker: "@name:"       # 名称标记（可选）
+
+  # 16进制数据匹配规则
+  pattern: "^\\s*([0-9A-Fa-f\\s]+)\\s*$"
+  format: "spaced"  # "spaced" (AA BB CC) 或 "compact" (AABBCC)
+
+# 字段解析（仅在 block_mode=false 时使用）
+fields: []
+# 示例：解析结构化数据包
+# fields:
+#   - name: "header"
+#     offset: 0        # 起始字节偏移
+#     length: 1        # 字节数
+#     type: "uint8"    # 数据类型: uint8, uint16, uint32, string, hex
+#     description: "数据包头"
+#
+#   - name: "length"
+#     offset: 1
+#     length: 2
+#     type: "uint16"
+#     endian: "big"    # big 或 little
+#     description: "数据长度"
+#
+#   - name: "data"
+#     offset: 4
+#     length: "dynamic"      # dynamic 表示长度由其他字段决定
+#     length_field: "length" # 参考length字段的值
+#     type: "hex"
+#     description: "数据内容"
+#
+#   - name: "checksum"
+#     offset: "end-1"  # 倒数第1个字节
+#     length: 1
+#     type: "uint8"
+#     description: "校验和"
+
+# 值映射（可选，用于将数值映射为有意义的名称）
+# value_mapping:
+#   type:
+#     0x01: "CONFIG"
+#     0x02: "STATUS"
+#     0x03: "DATA"
+#     0xFF: "ERROR"
+
+# 校验配置（可选）
+validation: {}
+# validation:
+#   verify_checksum: false
+#   checksum_algorithm: "sum"  # sum, xor, crc16, crc32
+#   verify_header: false
+#   expected_header: 0xAA
+
+# 输出配置
+output:
+  # 输出格式：json, dict, table
+  format: "json"
+
+  # 是否输出原始16进制
+  include_raw: true
+
+  # JSON报告路径
+  json_path: "output/data_parsed.json"
+
+  # 二进制文件导出
+  export_binary: true
+  binary_output_dir: "output/binaries"  # 二进制文件输出目录
+  binary_name_template: "{type}_{address}_{timestamp}.bin"  # 文件名模板，支持: {type}, {address}, {name}, {index}, {timestamp}
+
+  # Manifest清单
+  generate_manifest: true
+  manifest_path: "output/manifest.json"  # Manifest文件路径
