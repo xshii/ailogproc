@@ -580,7 +580,7 @@ class ConstraintCheckerPlugin(Plugin):
         # 3. 使用默认值
         return "opSch"
 
-    def _generate_report(self, result: dict, context: dict) -> str:
+    def _generate_report(self, result: dict, _context: dict) -> str:
         """生成极简 JSON 报告
 
         Args:

@@ -55,7 +55,7 @@ class PerfAnalyzerPlugin(Plugin):
         # 4. 计算 MFU（如果启用）
         mfu_result = {}
         if self.config["analysis"].get("compute_mfu", False):
-            mfu_result = self._compute_mfu(pairs, summary)
+            mfu_result = self._compute_mfu(pairs)
             if mfu_result:
                 info(f"[性能分析] 平均 MFU: {mfu_result.get('mean_mfu', 0):.2%}")
 
@@ -78,7 +78,7 @@ class PerfAnalyzerPlugin(Plugin):
         performance = pair.get("performance", {})
 
         # 尝试找到任何包含duration或cycle的字段
-        for key, value in performance.items():
+        for value in performance.values():
             if isinstance(value, (int, float)):
                 return float(value)
 
@@ -213,7 +213,7 @@ class PerfAnalyzerPlugin(Plugin):
 
         return stats
 
-    def _compute_mfu(self, pairs: List[Dict], summary: Dict) -> Dict:
+    def _compute_mfu(self, pairs: List[Dict]) -> Dict:
         """计算 MFU (Model FLOPs Utilization)
 
         MFU = 实际FLOPs / 理论峰值FLOPs
