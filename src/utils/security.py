@@ -119,7 +119,7 @@ def sanitize_filename(filename: str, replacement: str = "_") -> str:
         'etcpasswd'
     """
     if not filename:
-        return ""
+        return "unnamed"
 
     # Windows和Unix通用的危险字符
     dangerous_chars = '<>:"|?*\\/\x00'
@@ -132,8 +132,8 @@ def sanitize_filename(filename: str, replacement: str = "_") -> str:
     # 移除开头的点号（隐藏文件）和空格
     safe_name = safe_name.lstrip(". ")
 
-    # 确保不为空
-    if not safe_name:
+    # 确保不为空或只包含替换字符/空白
+    if not safe_name or not safe_name.strip(replacement):
         safe_name = "unnamed"
 
     return safe_name

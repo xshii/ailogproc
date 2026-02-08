@@ -174,12 +174,10 @@ class TestSanitizeFilename:
         assert sanitize_filename("  spaces.txt") == "spaces.txt"
         assert sanitize_filename(".. double_dot") == "double_dot"
 
-    @pytest.mark.xfail(reason="BUG: 空文件名应该返回 'unnamed'，但实际返回空字符串")
     def test_empty_filename(self):
         """测试空文件名"""
         assert sanitize_filename("") == "unnamed"
 
-    @pytest.mark.xfail(reason="BUG: 全是危险字符应该返回 'unnamed'，但实际返回下划线")
     def test_only_dangerous_chars(self):
         """测试全部是危险字符"""
         assert sanitize_filename("<>:|?*") == "unnamed"
