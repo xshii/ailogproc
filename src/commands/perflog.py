@@ -67,7 +67,6 @@ class PerfLogCommand(Command):
 
         try:
             # 延迟导入
-            from config.default_config import RAW_CONFIG
             from src.plugins.perf_parser.plugin import PerfParserPlugin
             from src.plugins.perf_analyzer.plugin import PerfAnalyzerPlugin
             from src.plugins.perf_visualizer.plugin import PerfVisualizerPlugin
@@ -80,8 +79,7 @@ class PerfLogCommand(Command):
 
             # 1. 解析日志
             info(f"[1/3] 解析 {len(log_files)} 个日志文件...")
-            parser_config = RAW_CONFIG.get("perf_parser", {})
-            parser = PerfParserPlugin(parser_config)
+            parser = PerfParserPlugin()
 
             context = {"perf_log_files": log_files}
             parser_result = parser.execute(context)
@@ -94,17 +92,15 @@ class PerfLogCommand(Command):
 
             # 2. 统计分析
             info("[2/3] 统计分析...")
-            analyzer_config = RAW_CONFIG.get("perf_analyzer", {})
+            analyzer = PerfAnalyzerPlugin()
 
             # 应用命令行参数覆盖
             if args.freq:
-                analyzer_config["hardware"]["frequency_ghz"] = args.freq
+                analyzer.config.setdefault("hardware", {})["frequency_ghz"] = args.freq
             if args.json:
-                analyzer_config["reporting"]["json_path"] = args.json
+                analyzer.config.setdefault("reporting", {})["json_path"] = args.json
             if args.csv:
-                analyzer_config["reporting"]["csv_path"] = args.csv
-
-            analyzer = PerfAnalyzerPlugin(analyzer_config)
+                analyzer.config.setdefault("reporting", {})["csv_path"] = args.csv
             analyzer_result = analyzer.execute(context)
             context["perf_analyzer"] = analyzer_result
 
@@ -125,12 +121,10 @@ class PerfLogCommand(Command):
             # 3. 可视化
             if not args.no_viz:
                 info("[3/3] 生成可视化...")
-                viz_config = RAW_CONFIG.get("perf_visualizer", {})
+                visualizer = PerfVisualizerPlugin()
 
                 if args.timeline:
-                    viz_config["gantt"]["output_path"] = args.timeline
-
-                visualizer = PerfVisualizerPlugin(viz_config)
+                    visualizer.config.setdefault("gantt", {})["output_path"] = args.timeline
                 viz_result = visualizer.execute(context)
 
                 timeline_path = viz_result.get("timeline_path")

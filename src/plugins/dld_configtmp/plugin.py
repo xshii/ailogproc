@@ -9,11 +9,14 @@ import shutil
 from datetime import datetime
 from pathlib import Path
 
-import requests
+# 可选依赖
+try:
+    import requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 from src.plugins.base import Plugin
-
-
 from src.utils import info, warning, error
 
 
@@ -133,6 +136,10 @@ class DownloadTemplatePlugin(Plugin):
         Returns:
             {'path': 文件路径, 'version': 版本号} 或 None
         """
+        if not HAS_REQUESTS:
+            warning("  ⚠️  未安装 requests 模块，无法从API下载模板")
+            return None
+
         api_config = self.config.get("api", {})
         api_url = api_config.get("url")
 

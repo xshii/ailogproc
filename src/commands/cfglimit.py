@@ -21,8 +21,8 @@ class CfgLimitCommand(Command):
     def register_arguments(self, parser: argparse.ArgumentParser) -> None:
         """注册参数"""
         parser.add_argument(
-            "excel",
-            help="已填充的Excel配置文件路径",
+            "log",
+            help="日志文件路径",
         )
         parser.add_argument(
             "-r",
@@ -43,24 +43,36 @@ class CfgLimitCommand(Command):
 
         try:
             # 延迟导入
-            from config.default_config import RAW_CONFIG
+            from src.plugins.config_parser.plugin import ConfigParserPlugin
             from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 
-            # 创建约束检查插件实例
-            config = RAW_CONFIG.get("constraint_checker", {})
-            if args.report:
-                config["report_path"] = args.report
+            # 1. 解析日志文件
+            info("[1/2] 解析日志文件...")
+            parser = ConfigParserPlugin()
+            context = {"trace_file": args.log}
+            parser_result = parser.execute(context)
 
-            checker = ConstraintCheckerPlugin(config)
+            if not parser_result or not parser_result.get("sections"):
+                error("日志文件解析失败或未找到配置数据")
+                return 1
+
+            sections = parser_result.get("sections", [])
+            info(f"  ✓ 找到 {len(sections)} 个配置块")
+
+            # 将解析结果放入上下文
+            context["config_parser"] = parser_result
+
+            # 2. 执行约束检查
+            info("[2/2] 检查配置约束...")
+            checker = ConstraintCheckerPlugin()
+
+            # 应用命令行参数覆盖
+            if args.report:
+                checker.config["report_path"] = args.report
 
             if not checker.enabled:
                 warning("约束检查插件未启用")
                 return 0
-
-            # 准备上下文
-            context = {
-                "excel_file": args.excel,
-            }
 
             # 执行约束检查
             result = checker.execute(context)

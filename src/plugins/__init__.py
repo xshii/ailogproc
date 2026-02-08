@@ -2,23 +2,28 @@
 插件注册表和调度器
 """
 
-from src.plugins.dld_configtmp import DownloadTemplatePlugin
-from src.plugins.config_parser import ConfigParserPlugin
-from src.plugins.constraint_checker import ConstraintCheckerPlugin
-from src.plugins.excel_writer import ExcelWriterPlugin
-from src.plugins.auto_filename import AutoFilenamePlugin
-
-
 from src.utils import info, warning, error
 
-# 插件注册表
-PLUGIN_REGISTRY = {
-    "dld_configtmp": DownloadTemplatePlugin,
-    "config_parser": ConfigParserPlugin,
-    "constraint_checker": ConstraintCheckerPlugin,
-    "excel_writer": ExcelWriterPlugin,
-    "auto_filename": AutoFilenamePlugin,
-}
+
+def _lazy_import_plugins():
+    """延迟导入插件，避免在模块导入时就加载所有依赖"""
+    from src.plugins.dld_configtmp import DownloadTemplatePlugin
+    from src.plugins.config_parser import ConfigParserPlugin
+    from src.plugins.constraint_checker import ConstraintCheckerPlugin
+    from src.plugins.excel_writer import ExcelWriterPlugin
+    from src.plugins.auto_filename import AutoFilenamePlugin
+
+    return {
+        "dld_configtmp": DownloadTemplatePlugin,
+        "config_parser": ConfigParserPlugin,
+        "constraint_checker": ConstraintCheckerPlugin,
+        "excel_writer": ExcelWriterPlugin,
+        "auto_filename": AutoFilenamePlugin,
+    }
+
+
+# 插件注册表（延迟初始化）
+PLUGIN_REGISTRY = None
 
 
 def load_plugins() -> tuple:
@@ -30,6 +35,10 @@ def load_plugins() -> tuple:
         - plugins: 按 level 排序的插件列表
         - plugin_configs: {plugin_key: config} 字典
     """
+    global PLUGIN_REGISTRY
+    if PLUGIN_REGISTRY is None:
+        PLUGIN_REGISTRY = _lazy_import_plugins()
+
     plugins = []
     plugin_configs = {}
 
@@ -117,6 +126,10 @@ def _execute_single_plugin(plugin, context):
 
 def _get_plugin_key(plugin) -> str:
     """获取插件的注册键名"""
+    global PLUGIN_REGISTRY
+    if PLUGIN_REGISTRY is None:
+        PLUGIN_REGISTRY = _lazy_import_plugins()
+
     for key, cls in PLUGIN_REGISTRY.items():
         if isinstance(plugin, cls):
             return key
