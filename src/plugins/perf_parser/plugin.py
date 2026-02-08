@@ -68,7 +68,6 @@ class PerfParserPlugin(Plugin):
             事件列表，每个事件包含：
             {
                 'line_number': int,
-                'raw_line': str,
                 'event_type': 'start'|'end',
                 'rule_name': str,
                 'fields': {...}  # 提取的字段
@@ -166,7 +165,6 @@ class PerfParserPlugin(Plugin):
         # 构建事件
         event = {
             "line_number": line_num,
-            "raw_line": line,
             "event_type": pattern_type,
             "rule_name": rule.get("name", "unknown"),
             "fields": fields,
