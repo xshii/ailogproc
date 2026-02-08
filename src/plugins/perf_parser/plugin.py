@@ -1,12 +1,11 @@
 """
-性能日志解析器插件 - 解析性能日志并找到关联的开始/结束行
+性能日志解析器插件 - 基于多规则提取的性能日志解析
 """
 
 import re
-from datetime import datetime
 from typing import List, Dict, Optional, Tuple
 from src.plugins.base import Plugin
-from src.utils import info, warning, error, debug
+from src.utils import info, warning, error
 
 
 class PerfParserPlugin(Plugin):
@@ -63,163 +62,117 @@ class PerfParserPlugin(Plugin):
         return result
 
     def _parse_log_file(self, log_file: str) -> List[Dict]:
-        """解析日志文件
+        """解析日志文件，使用多规则提取
 
         Returns:
             事件列表，每个事件包含：
             {
                 'line_number': int,
-                'timestamp': datetime,
                 'raw_line': str,
-                'event_type': 'start'|'end'|'unknown',
-                'correlation_id': str,
-                'execution_unit': str,
-                'metrics': {...}
+                'event_type': 'start'|'end',
+                'rule_name': str,
+                'fields': {...}  # 提取的字段
             }
         """
         events = []
-        ignore_patterns = [
-            re.compile(p) for p in self.config["cleaning"]["ignore_patterns"]
-        ]
+        extraction_rules = self.config.get("extraction_rules", [])
 
         try:
             with open(log_file, "r", encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     line = line.strip()
-
-                    # 跳过需要忽略的行
-                    if any(pattern.search(line) for pattern in ignore_patterns):
+                    if not line:
                         continue
 
-                    # 解析事件
-                    event = self._parse_line(line, line_num)
-                    if event:
-                        events.append(event)
+                    # 尝试每个提取规则
+                    for rule in extraction_rules:
+                        # 尝试匹配开始模式
+                        start_event = self._try_match_pattern(
+                            line, line_num, rule, "start"
+                        )
+                        if start_event:
+                            events.append(start_event)
+                            break  # 一行只匹配一个规则
+
+                        # 尝试匹配结束模式
+                        end_event = self._try_match_pattern(
+                            line, line_num, rule, "end"
+                        )
+                        if end_event:
+                            events.append(end_event)
+                            break
 
         except Exception as e:
             error(f"[性能日志解析] 读取文件失败: {e}")
 
         return events
 
-    def _parse_line(self, line: str, line_num: int) -> Optional[Dict]:
-        """解析单行日志
+    def _try_match_pattern(
+        self, line: str, line_num: int, rule: dict, pattern_type: str
+    ) -> Optional[Dict]:
+        """尝试用指定规则匹配一行日志
+
+        Args:
+            line: 日志行
+            line_num: 行号
+            rule: 提取规则
+            pattern_type: 'start' 或 'end'
 
         Returns:
-            事件字典或None（无法解析时）
+            匹配成功返回事件字典，否则返回 None
         """
-        # 提取时间戳
-        timestamp = self._extract_timestamp(line)
-
-        # 判断事件类型（开始/结束）
-        event_type = self._identify_event_type(line)
-
-        # 提取关联ID
-        correlation_id = self._extract_correlation_id(line)
-
-        # 如果没有关联ID或事件类型，跳过
-        if not correlation_id or event_type == "unknown":
+        pattern_key = f"{pattern_type}_pattern"
+        if pattern_key not in rule:
             return None
 
-        # 提取执行单元
-        execution_unit = self._extract_execution_unit(line)
+        pattern_config = rule[pattern_key]
+        regex = pattern_config.get("regex")
+        field_defs = pattern_config.get("fields", {})
 
-        # 提取性能指标
-        metrics = self._extract_metrics(line)
+        if not regex:
+            return None
 
-        return {
+        # 尝试匹配
+        match = re.search(regex, line)
+        if not match:
+            return None
+
+        # 提取字段
+        fields = {}
+        try:
+            for field_name, field_config in field_defs.items():
+                # 从命名捕获组提取
+                value = match.group(field_name)
+
+                # 类型转换
+                field_type = field_config.get("type", "string")
+                if field_type == "int":
+                    value = int(value)
+                elif field_type == "float":
+                    value = float(value)
+                # string 类型不需要转换
+
+                fields[field_name] = value
+
+            # 检查必需字段
+            for field_name, field_config in field_defs.items():
+                if field_config.get("required", False) and field_name not in fields:
+                    return None
+
+        except (ValueError, IndexError, KeyError) as e:
+            # 提取或转换失败
+            return None
+
+        # 构建事件
+        event = {
             "line_number": line_num,
-            "timestamp": timestamp,
             "raw_line": line,
-            "event_type": event_type,
-            "correlation_id": correlation_id,
-            "execution_unit": execution_unit,
-            "metrics": metrics,
+            "event_type": pattern_type,
+            "rule_name": rule.get("name", "unknown"),
+            "fields": fields,
         }
 
-    def _extract_timestamp(self, line: str) -> Optional[datetime]:
-        """从日志行中提取时间戳"""
-        timestamp_regex = self.config["correlation"]["timestamp_regex"]
-        match = re.search(timestamp_regex, line)
-
-        if match:
-            timestamp_str = match.group(1)
-            timestamp_format = self.config["correlation"]["timestamp_format"]
-            try:
-                return datetime.strptime(timestamp_str, timestamp_format)
-            except ValueError:
-                return None
-
-        return None
-
-    def _identify_event_type(self, line: str) -> str:
-        """识别事件类型（开始/结束/未知）"""
-        markers = self.config["correlation"]["markers"]
-
-        # 检查是否包含开始标记
-        if any(marker in line for marker in markers["start"]):
-            return "start"
-
-        # 检查是否包含结束标记
-        if any(marker in line for marker in markers["end"]):
-            return "end"
-
-        return "unknown"
-
-    def _extract_correlation_id(self, line: str) -> Optional[str]:
-        """提取关联ID"""
-        id_fields = self.config["correlation"]["id_fields"]
-
-        # 尝试每个ID字段
-        for field in id_fields:
-            # 匹配 "字段: 值" 或 "字段:值"
-            pattern = rf"{field}\s*:\s*(\S+)"
-            match = re.search(pattern, line)
-            if match:
-                return match.group(1)
-
-        return None
-
-    def _extract_execution_unit(self, line: str) -> Optional[str]:
-        """提取执行单元"""
-        unit_fields = self.config["metrics"]["execution_unit"]
-
-        for field in unit_fields:
-            pattern = rf"{field}\s*:\s*(\S+)"
-            match = re.search(pattern, line)
-            if match:
-                return match.group(1)
-
-        return None
-
-    def _extract_metrics(self, line: str) -> Dict:
-        """提取性能指标"""
-        metrics = {}
-
-        # 提取耗时
-        duration_fields = self.config["metrics"]["duration"]
-        for field in duration_fields:
-            # 匹配 "字段: 数字单位" 如 "耗时: 25ms"
-            pattern = rf"{field}\s*:\s*([\d.]+)\s*(\w+)?"
-            match = re.search(pattern, line)
-            if match:
-                value = float(match.group(1))
-                unit = match.group(2) if match.group(2) else ""
-                metrics["duration"] = {"value": value, "unit": unit}
-                break
-
-        # 提取自定义指标
-        custom_metrics = self.config["metrics"].get("custom", {})
-        for metric_name, field_list in custom_metrics.items():
-            for field in field_list:
-                pattern = rf"{field}\s*:\s*([\d.]+)\s*(\w+)?"
-                match = re.search(pattern, line)
-                if match:
-                    value = float(match.group(1))
-                    unit = match.group(2) if match.group(2) else ""
-                    metrics[metric_name] = {"value": value, "unit": unit}
-                    break
-
-        return metrics
+        return event
 
     def _correlate_events(
         self, events: List[Dict]
@@ -232,56 +185,157 @@ class PerfParserPlugin(Plugin):
         pairs = []
         unpaired = []
 
-        # 按关联ID分组
-        start_events = {}  # {correlation_id: event}
-        end_events = {}  # {correlation_id: event}
-
+        # 按规则名称分组
+        events_by_rule = {}
         for event in events:
-            corr_id = event["correlation_id"]
-            event_type = event["event_type"]
+            rule_name = event["rule_name"]
+            if rule_name not in events_by_rule:
+                events_by_rule[rule_name] = {"starts": [], "ends": []}
 
-            if event_type == "start":
-                if corr_id in start_events:
-                    warning(
-                        f"[性能日志解析] 重复的开始事件: {corr_id} (行 {event['line_number']})"
-                    )
-                start_events[corr_id] = event
-            elif event_type == "end":
-                if corr_id in end_events:
-                    warning(
-                        f"[性能日志解析] 重复的结束事件: {corr_id} (行 {event['line_number']})"
-                    )
-                end_events[corr_id] = event
+            if event["event_type"] == "start":
+                events_by_rule[rule_name]["starts"].append(event)
+            elif event["event_type"] == "end":
+                events_by_rule[rule_name]["ends"].append(event)
 
-        # 配对
-        all_ids = set(start_events.keys()) | set(end_events.keys())
+        # 对每个规则进行配对
+        extraction_rules = self.config.get("extraction_rules", [])
+        for rule in extraction_rules:
+            rule_name = rule.get("name", "unknown")
+            if rule_name not in events_by_rule:
+                continue
 
-        for corr_id in all_ids:
-            start = start_events.get(corr_id)
-            end = end_events.get(corr_id)
+            rule_events = events_by_rule[rule_name]
+            match_fields = rule.get("match_fields", [])
 
-            if start and end:
-                # 计算耗时（如果结束事件有时间戳）
-                duration = None
-                if start["timestamp"] and end["timestamp"]:
-                    duration = (end["timestamp"] - start["timestamp"]).total_seconds()
+            # 配对该规则的开始和结束事件
+            rule_pairs, rule_unpaired = self._pair_events(
+                rule_events["starts"], rule_events["ends"], match_fields, rule
+            )
+
+            pairs.extend(rule_pairs)
+            unpaired.extend(rule_unpaired)
+
+        return pairs, unpaired
+
+    def _pair_events(
+        self,
+        start_events: List[Dict],
+        end_events: List[Dict],
+        match_fields: List[str],
+        rule: dict,
+    ) -> Tuple[List[Dict], List[Dict]]:
+        """配对开始和结束事件
+
+        Args:
+            start_events: 开始事件列表
+            end_events: 结束事件列表
+            match_fields: 需要匹配的字段名列表
+            rule: 提取规则配置
+
+        Returns:
+            (配对列表, 未配对列表)
+        """
+        pairs = []
+        unpaired = []
+        matched_ends = set()
+
+        for start in start_events:
+            # 查找匹配的结束事件
+            matched_end = None
+            for idx, end in enumerate(end_events):
+                if idx in matched_ends:
+                    continue
+
+                # 检查所有匹配字段是否相同
+                if self._fields_match(start["fields"], end["fields"], match_fields):
+                    matched_end = end
+                    matched_ends.add(idx)
+                    break
+
+            if matched_end:
+                # 计算性能指标
+                performance = self._calculate_performance(start, matched_end, rule)
+
+                # 提取关联ID（使用第一个匹配字段的值）
+                correlation_id = (
+                    start["fields"].get(match_fields[0])
+                    if match_fields
+                    else f"line_{start['line_number']}"
+                )
+
+                # 提取执行单元（如果配置了 'unit' 字段）
+                execution_unit = start["fields"].get("unit") or matched_end[
+                    "fields"
+                ].get("unit")
 
                 pairs.append(
                     {
-                        "correlation_id": corr_id,
+                        "correlation_id": str(correlation_id),
+                        "execution_unit": execution_unit,
                         "start_event": start,
-                        "end_event": end,
-                        "duration_seconds": duration,
-                        "execution_unit": start["execution_unit"]
-                        or end["execution_unit"],
+                        "end_event": matched_end,
+                        "rule_name": rule.get("name"),
+                        "performance": performance,
                     }
                 )
             else:
-                # 未配对的事件
-                unpaired_event = start or end
-                unpaired.append(unpaired_event)
+                unpaired.append(start)
+
+        # 未匹配的结束事件
+        for idx, end in enumerate(end_events):
+            if idx not in matched_ends:
+                unpaired.append(end)
 
         return pairs, unpaired
+
+    def _fields_match(
+        self, fields1: dict, fields2: dict, match_fields: List[str]
+    ) -> bool:
+        """检查两个字段字典在指定字段上是否匹配"""
+        for field in match_fields:
+            if fields1.get(field) != fields2.get(field):
+                return False
+        return True
+
+    def _calculate_performance(
+        self, start_event: Dict, end_event: Dict, rule: dict
+    ) -> Dict:
+        """计算性能指标
+
+        Args:
+            start_event: 开始事件
+            end_event: 结束事件
+            rule: 提取规则（包含 performance 配置）
+
+        Returns:
+            性能指标字典
+        """
+        perf_config = rule.get("performance", {})
+        duration_field = perf_config.get("duration_field", "duration")
+        formula = perf_config.get("formula", "")
+
+        performance = {}
+
+        if formula:
+            # 解析公式（如 "cycle_end - cycle_start"）
+            try:
+                # 简单的减法公式解析
+                if " - " in formula:
+                    parts = formula.split(" - ")
+                    if len(parts) == 2:
+                        end_field = parts[0].strip()
+                        start_field = parts[1].strip()
+
+                        end_value = end_event["fields"].get(end_field)
+                        start_value = start_event["fields"].get(start_field)
+
+                        if end_value is not None and start_value is not None:
+                            duration = end_value - start_value
+                            performance[duration_field] = duration
+            except Exception as e:
+                warning(f"[性能日志解析] 计算性能指标失败: {e}")
+
+        return performance
 
     def _compute_statistics(
         self, events: List[Dict], pairs: List[Dict], unpaired: List[Dict]
@@ -295,12 +349,20 @@ class PerfParserPlugin(Plugin):
             "unpaired_events": len(unpaired),
         }
 
+        # 按规则统计
+        rules = {}
+        for event in events:
+            rule_name = event.get("rule_name", "unknown")
+            rules[rule_name] = rules.get(rule_name, 0) + 1
+
+        stats["by_rule"] = rules
+
         # 按执行单元统计
         units = {}
         for pair in pairs:
             unit = pair.get("execution_unit", "unknown")
             units[unit] = units.get(unit, 0) + 1
 
-        stats["execution_units"] = units
+        stats["by_execution_unit"] = units
 
         return stats

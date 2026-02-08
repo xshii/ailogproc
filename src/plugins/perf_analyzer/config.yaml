@@ -1,26 +1,21 @@
 # 性能数据分析器配置
 enable: true
 
+# 硬件配置
+hardware:
+  # 时钟频率（GHz）
+  frequency_ghz: 1.0
+
+  # 理论峰值算力（TFLOPS）
+  peak_tflops: null  # null 表示不计算 MFU
+
 # 分析选项
 analysis:
   # 是否计算统计指标
   compute_statistics: true
-  
-  # 是否检测异常值
-  detect_outliers: true
-  
-  # 异常值检测方法
-  outlier_method: "iqr"  # iqr | zscore | percentile
-  
-  # IQR方法参数
-  iqr_multiplier: 1.5
-  
-  # Z-score方法参数
-  zscore_threshold: 3.0
-  
-  # 百分位方法参数
-  percentile_lower: 5   # 低于此百分位的为异常
-  percentile_upper: 95  # 高于此百分位的为异常
+
+  # 是否计算 MFU（需要配置 peak_tflops）
+  compute_mfu: false
 
 # 分组分析
 grouping:

@@ -8,12 +8,12 @@ log_file: null
 extraction_rules:
   # 第1组：通用任务规则
   - name: "通用任务"
-    description: "通用的任务开始/结束匹配"
+    description: "通用的任务开始/结束匹配（支持算子执行和数据搬移）"
 
     # 开始行匹配规则
     start_pattern:
       # 正则表达式（使用命名捕获组）
-      regex: '开始.*ID:\s*(?P<task_id>\w+).*单元:\s*(?P<unit>\w+).*cycle:\s*(?P<cycle_start>\d+)'
+      regex: '开始.*ID:\s*(?P<task_id>\w+).*单元:\s*(?P<unit>\w+).*device:\s*(?P<device>\w+).*cycle:\s*(?P<cycle_start>\d+)'
       # 字段定义
       fields:
         task_id:
@@ -22,13 +22,16 @@ extraction_rules:
         unit:
           type: "string"
           required: true
+        device:
+          type: "string"
+          required: false
         cycle_start:
           type: "int"
           required: true
 
     # 结束行匹配规则
     end_pattern:
-      regex: '完成.*ID:\s*(?P<task_id>\w+).*单元:\s*(?P<unit>\w+).*cycle:\s*(?P<cycle_end>\d+)'
+      regex: '完成.*ID:\s*(?P<task_id>\w+).*单元:\s*(?P<unit>\w+).*device:\s*(?P<device>\w+).*cycle:\s*(?P<cycle_end>\d+)'
       fields:
         task_id:
           type: "string"
@@ -36,6 +39,9 @@ extraction_rules:
         unit:
           type: "string"
           required: true
+        device:
+          type: "string"
+          required: false
         cycle_end:
           type: "int"
           required: true
@@ -136,19 +142,3 @@ extraction_rules:
     performance:
       duration_field: "transfer_cycles"
       formula: "done_cycle - begin_cycle"
-
-# 时间戳提取（可选）
-timestamp:
-  # 时间戳正则表达式
-  regex: '\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{3})\]'
-  # 时间戳格式
-  format: "%Y-%m-%d %H:%M:%S.%f"
-
-# 数据清洗
-cleaning:
-  # 忽略的行模式（正则表达式列表）
-  ignore_patterns:
-    - "^#.*"          # 注释行
-    - "^\\s*$"        # 空行
-    - "^DEBUG:"       # DEBUG日志
-    - "^TRACE:"       # TRACE日志

@@ -1,11 +1,11 @@
 """
-性能数据分析器插件 - 统计和分析性能数据
+性能数据分析器插件 - 统计和分析性能数据（基于cycle）
 """
 
 import os
 import json
 import csv
-from typing import List, Dict
+from typing import List, Dict, Optional
 from src.plugins.base import Plugin
 from src.utils import info, warning, error
 
@@ -27,7 +27,7 @@ class PerfAnalyzerPlugin(Plugin):
             {
                 'summary': {汇总统计},
                 'by_unit': {按执行单元的统计},
-                'outliers': [异常值列表],
+                'mfu': {MFU计算结果} (可选),
                 'report_paths': {报告文件路径}
             }
         """
@@ -37,7 +37,7 @@ class PerfAnalyzerPlugin(Plugin):
 
         if not pairs:
             warning("[性能分析] 没有可分析的数据")
-            return {"summary": {}, "by_unit": {}, "outliers": []}
+            return {"summary": {}, "by_unit": {}, "mfu": {}}
 
         info(f"[性能分析] 开始分析 {len(pairs)} 对事件")
 
@@ -49,25 +49,44 @@ class PerfAnalyzerPlugin(Plugin):
         if self.config["grouping"]["by_execution_unit"]:
             by_unit = self._analyze_by_unit(pairs)
 
-        # 3. 检测异常值
-        outliers = []
-        if self.config["analysis"]["detect_outliers"]:
-            outliers = self._detect_outliers(pairs)
-            if outliers:
-                warning(f"[性能分析] 检测到 {len(outliers)} 个异常值")
+        # 3. 计算 MFU（如果启用）
+        mfu_result = {}
+        if self.config["analysis"].get("compute_mfu", False):
+            mfu_result = self._compute_mfu(pairs, summary)
+            if mfu_result:
+                info(f"[性能分析] 平均 MFU: {mfu_result.get('mean_mfu', 0):.2%}")
 
-        result = {"summary": summary, "by_unit": by_unit, "outliers": outliers}
+        result = {
+            "summary": summary,
+            "by_unit": by_unit,
+            "mfu": mfu_result,
+        }
 
-        # 4. 生成报告
+        # 5. 生成报告
         report_paths = self._generate_reports(result, pairs)
         result["report_paths"] = report_paths
 
         info("[性能分析] 分析完成")
         return result
 
+    def _extract_duration(self, pair: Dict) -> Optional[float]:
+        """从pair中提取duration值（cycles）"""
+        performance = pair.get("performance", {})
+
+        # 尝试找到任何包含duration或cycle的字段
+        for key, value in performance.items():
+            if isinstance(value, (int, float)):
+                return float(value)
+
+        return None
+
     def _compute_summary(self, pairs: List[Dict]) -> Dict:
-        """计算汇总统计"""
-        durations = [p["duration_seconds"] for p in pairs if p["duration_seconds"]]
+        """计算汇总统计（以cycles为单位）"""
+        durations = []
+        for p in pairs:
+            duration = self._extract_duration(p)
+            if duration is not None:
+                durations.append(duration)
 
         if not durations:
             return {}
@@ -77,15 +96,24 @@ class PerfAnalyzerPlugin(Plugin):
 
         summary = {
             "count": n,
-            "min": min(durations),
-            "max": max(durations),
-            "mean": sum(durations) / n,
-            "median": durations_sorted[n // 2],
-            "p50": durations_sorted[int(n * 0.50)],
-            "p90": durations_sorted[int(n * 0.90)],
-            "p95": durations_sorted[int(n * 0.95)],
-            "p99": durations_sorted[int(n * 0.99)] if n >= 100 else durations_sorted[-1],
+            "min_cycles": min(durations),
+            "max_cycles": max(durations),
+            "mean_cycles": sum(durations) / n,
+            "median_cycles": durations_sorted[n // 2],
+            "p50_cycles": durations_sorted[int(n * 0.50)],
+            "p90_cycles": durations_sorted[int(n * 0.90)],
+            "p95_cycles": durations_sorted[int(n * 0.95)],
+            "p99_cycles": durations_sorted[int(n * 0.99)] if n >= 100 else durations_sorted[-1],
         }
+
+        # 如果配置了频率，也计算以时间为单位的统计
+        freq_ghz = self.config["hardware"].get("frequency_ghz")
+        if freq_ghz:
+            summary["frequency_ghz"] = freq_ghz
+            summary["min_ms"] = summary["min_cycles"] / (freq_ghz * 1e6)
+            summary["max_ms"] = summary["max_cycles"] / (freq_ghz * 1e6)
+            summary["mean_ms"] = summary["mean_cycles"] / (freq_ghz * 1e6)
+            summary["median_ms"] = summary["median_cycles"] / (freq_ghz * 1e6)
 
         return summary
 
@@ -95,7 +123,7 @@ class PerfAnalyzerPlugin(Plugin):
 
         for pair in pairs:
             unit = pair.get("execution_unit", "unknown")
-            duration = pair.get("duration_seconds")
+            duration = self._extract_duration(pair)
 
             if duration is None:
                 continue
@@ -107,6 +135,8 @@ class PerfAnalyzerPlugin(Plugin):
 
         # 计算每个单元的统计
         stats = {}
+        freq_ghz = self.config["hardware"].get("frequency_ghz")
+
         for unit, durations in by_unit.items():
             if not durations:
                 continue
@@ -114,128 +144,78 @@ class PerfAnalyzerPlugin(Plugin):
             durations_sorted = sorted(durations)
             n = len(durations)
 
-            stats[unit] = {
+            unit_stats = {
                 "count": n,
-                "min": min(durations),
-                "max": max(durations),
-                "mean": sum(durations) / n,
-                "median": durations_sorted[n // 2],
+                "min_cycles": min(durations),
+                "max_cycles": max(durations),
+                "mean_cycles": sum(durations) / n,
+                "median_cycles": durations_sorted[n // 2],
             }
+
+            # 如果配置了频率，也计算以时间为单位
+            if freq_ghz:
+                unit_stats["mean_ms"] = unit_stats["mean_cycles"] / (freq_ghz * 1e6)
+
+            stats[unit] = unit_stats
 
         return stats
 
-    def _detect_outliers(self, pairs: List[Dict]) -> List[Dict]:
-        """检测异常值"""
-        method = self.config["analysis"]["outlier_method"]
+    def _compute_mfu(self, pairs: List[Dict], summary: Dict) -> Dict:
+        """计算 MFU (Model FLOPs Utilization)
 
-        durations = [
-            (i, p["duration_seconds"])
-            for i, p in enumerate(pairs)
-            if p["duration_seconds"]
-        ]
+        MFU = 实际FLOPs / 理论峰值FLOPs
+        实际FLOPs = FLOPs数量 / (cycles / frequency)
+        """
+        freq_ghz = self.config["hardware"].get("frequency_ghz")
+        peak_tflops = self.config["hardware"].get("peak_tflops")
 
-        if not durations:
-            return []
+        if not freq_ghz or not peak_tflops:
+            warning("[性能分析] MFU计算需要配置 frequency_ghz 和 peak_tflops")
+            return {}
 
-        outliers = []
+        info(f"[性能分析] 计算 MFU (频率: {freq_ghz} GHz, 峰值: {peak_tflops} TFLOPS)")
 
-        if method == "iqr":
-            outliers = self._detect_outliers_iqr(durations, pairs)
-        elif method == "zscore":
-            outliers = self._detect_outliers_zscore(durations, pairs)
-        elif method == "percentile":
-            outliers = self._detect_outliers_percentile(durations, pairs)
+        # 注：这里需要从日志中提取FLOPs信息
+        # 当前实现是示例，实际需要根据具体日志格式调整
 
-        return outliers
+        mfu_values = []
+        for pair in pairs:
+            # 从start_event或end_event中提取FLOPs（需要根据实际日志格式）
+            # 示例：假设fields中有flops字段
+            start_fields = pair.get("start_event", {}).get("fields", {})
+            end_fields = pair.get("end_event", {}).get("fields", {})
 
-    def _detect_outliers_iqr(
-        self, durations: List[tuple], pairs: List[Dict]
-    ) -> List[Dict]:
-        """使用IQR方法检测异常值"""
-        values = [d[1] for d in durations]
-        values_sorted = sorted(values)
-        n = len(values_sorted)
+            flops = start_fields.get("flops") or end_fields.get("flops")
+            if not flops:
+                continue
 
-        q1 = values_sorted[n // 4]
-        q3 = values_sorted[3 * n // 4]
-        iqr = q3 - q1
+            duration_cycles = self._extract_duration(pair)
+            if not duration_cycles:
+                continue
 
-        multiplier = self.config["analysis"]["iqr_multiplier"]
-        lower_bound = q1 - multiplier * iqr
-        upper_bound = q3 + multiplier * iqr
+            # 计算实际时间（秒）
+            duration_seconds = duration_cycles / (freq_ghz * 1e9)
 
-        outliers = []
-        for idx, duration in durations:
-            if duration < lower_bound or duration > upper_bound:
-                outliers.append(
-                    {
-                        "pair": pairs[idx],
-                        "duration": duration,
-                        "reason": "IQR outlier",
-                        "bounds": [lower_bound, upper_bound],
-                    }
-                )
+            # 计算实际TFLOPS
+            actual_tflops = (flops / duration_seconds) / 1e12
 
-        return outliers
+            # 计算MFU
+            mfu = actual_tflops / peak_tflops
+            mfu_values.append(mfu)
 
-    def _detect_outliers_zscore(
-        self, durations: List[tuple], pairs: List[Dict]
-    ) -> List[Dict]:
-        """使用Z-score方法检测异常值"""
-        values = [d[1] for d in durations]
-        mean = sum(values) / len(values)
+        if not mfu_values:
+            warning("[性能分析] 未找到FLOPs数据，无法计算MFU")
+            return {}
 
-        # 计算标准差
-        variance = sum((x - mean) ** 2 for x in values) / len(values)
-        std_dev = variance**0.5
-
-        if std_dev == 0:
-            return []
-
-        threshold = self.config["analysis"]["zscore_threshold"]
-
-        outliers = []
-        for idx, duration in durations:
-            z_score = abs((duration - mean) / std_dev)
-            if z_score > threshold:
-                outliers.append(
-                    {
-                        "pair": pairs[idx],
-                        "duration": duration,
-                        "reason": "Z-score outlier",
-                        "z_score": z_score,
-                    }
-                )
-
-        return outliers
-
-    def _detect_outliers_percentile(
-        self, durations: List[tuple], pairs: List[Dict]
-    ) -> List[Dict]:
-        """使用百分位方法检测异常值"""
-        values = [d[1] for d in durations]
-        values_sorted = sorted(values)
-        n = len(values_sorted)
-
-        lower_pct = self.config["analysis"]["percentile_lower"]
-        upper_pct = self.config["analysis"]["percentile_upper"]
-
-        lower_bound = values_sorted[int(n * lower_pct / 100)]
-        upper_bound = values_sorted[int(n * upper_pct / 100)]
-
-        outliers = []
-        for idx, duration in durations:
-            if duration < lower_bound or duration > upper_bound:
-                outliers.append(
-                    {
-                        "pair": pairs[idx],
-                        "duration": duration,
-                        "reason": "Percentile outlier",
-                        "bounds": [lower_bound, upper_bound],
-                    }
-                )
-
-        return outliers
+        return {
+            "count": len(mfu_values),
+            "mean_mfu": sum(mfu_values) / len(mfu_values),
+            "min_mfu": min(mfu_values),
+            "max_mfu": max(mfu_values),
+            "median_mfu": sorted(mfu_values)[len(mfu_values) // 2],
+            "frequency_ghz": freq_ghz,
+            "peak_tflops": peak_tflops,
+        }
 
     def _generate_reports(self, result: Dict, pairs: List[Dict]) -> Dict:
         """生成报告文件"""
@@ -264,7 +244,7 @@ class PerfAnalyzerPlugin(Plugin):
             report = {
                 "summary": result["summary"],
                 "by_unit": result["by_unit"],
-                "outliers_count": len(result["outliers"]),
+                "mfu": result.get("mfu", {}),
                 "total_pairs": len(pairs),
             }
 
@@ -291,33 +271,26 @@ class PerfAnalyzerPlugin(Plugin):
                 writer.writerow(
                     [
                         "Correlation ID",
+                        "Rule Name",
                         "Execution Unit",
-                        "Duration (s)",
-                        "Start Time",
-                        "End Time",
+                        "Duration (cycles)",
+                        "Start Line",
+                        "End Line",
                     ]
                 )
 
                 # 写入数据
                 for pair in pairs:
-                    start_ts = (
-                        pair["start_event"]["timestamp"].isoformat()
-                        if pair["start_event"]["timestamp"]
-                        else ""
-                    )
-                    end_ts = (
-                        pair["end_event"]["timestamp"].isoformat()
-                        if pair["end_event"]["timestamp"]
-                        else ""
-                    )
+                    duration = self._extract_duration(pair)
 
                     writer.writerow(
                         [
-                            pair["correlation_id"],
+                            pair.get("correlation_id", ""),
+                            pair.get("rule_name", ""),
                             pair.get("execution_unit", ""),
-                            pair.get("duration_seconds", ""),
-                            start_ts,
-                            end_ts,
+                            duration if duration is not None else "",
+                            pair.get("start_event", {}).get("line_number", ""),
+                            pair.get("end_event", {}).get("line_number", ""),
                         ]
                     )
 

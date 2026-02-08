@@ -3,7 +3,7 @@
 """
 
 import os
-from typing import List, Dict
+from typing import List, Dict, Optional
 from src.plugins.base import Plugin
 from src.utils import info, warning, error
 
@@ -93,58 +93,60 @@ class PerfVisualizerPlugin(Plugin):
             return None
 
     def _prepare_timeline_data(self, pairs: List[Dict]) -> List[Dict]:
-        """准备时间线数据"""
+        """准备时间线数据（使用cycle作为时间轴）"""
         timeline_data = []
-        base_time = None
 
-        # 按开始时间排序
-        sorted_pairs = sorted(
-            pairs,
-            key=lambda p: p["start_event"]["timestamp"]
-            if p["start_event"]["timestamp"]
-            else float("inf"),
-        )
+        # 按开始行号排序
+        sorted_pairs = sorted(pairs, key=lambda p: p["start_event"]["line_number"])
 
         for idx, pair in enumerate(sorted_pairs):
             start_event = pair["start_event"]
             end_event = pair["end_event"]
 
-            # 跳过没有时间戳的事件
-            if not start_event["timestamp"] or not end_event["timestamp"]:
-                continue
-
-            # 记录基准时间（第一个事件的开始时间）
-            if base_time is None:
-                base_time = start_event["timestamp"]
-
-            # 计算相对时间（毫秒）
-            start_ms = (start_event["timestamp"] - base_time).total_seconds() * 1000
-            end_ms = (end_event["timestamp"] - base_time).total_seconds() * 1000
-            duration_ms = end_ms - start_ms
-
             # 提取算子信息
             operator_id = pair["correlation_id"]
             unit = pair.get("execution_unit", "Unknown")
-            
-            # 从 metrics 提取额外信息
-            metrics = end_event.get("metrics", {})
-            duration_info = metrics.get("duration", {})
+
+            # 从字段中提取 cycle 信息
+            start_fields = start_event.get("fields", {})
+            end_fields = end_event.get("fields", {})
+
+            # 尝试找到 cycle 字段（可能是 cycle_start, start_cycle, begin_cycle 等）
+            start_cycle = self._extract_cycle_value(start_fields, ["cycle_start", "start_cycle", "begin_cycle"])
+            end_cycle = self._extract_cycle_value(end_fields, ["cycle_end", "end_cycle", "done_cycle"])
+
+            # 如果没有cycle信息，跳过
+            if start_cycle is None or end_cycle is None:
+                continue
+
+            duration_cycles = end_cycle - start_cycle
+
+            # 从 performance 提取额外信息
+            performance = pair.get("performance", {})
 
             timeline_data.append(
                 {
                     "index": idx,
                     "operator_id": operator_id,
                     "unit": unit,
-                    "start_ms": start_ms,
-                    "end_ms": end_ms,
-                    "duration_ms": duration_ms,
+                    "start_cycle": start_cycle,
+                    "end_cycle": end_cycle,
+                    "duration_cycles": duration_cycles,
                     "start_line": start_event["line_number"],
                     "end_line": end_event["line_number"],
-                    "metrics": metrics,
+                    "performance": performance,
+                    "rule_name": pair.get("rule_name"),
                 }
             )
 
         return timeline_data
+
+    def _extract_cycle_value(self, fields: dict, possible_names: List[str]) -> Optional[int]:
+        """从字段中提取cycle值（尝试多个可能的字段名）"""
+        for name in possible_names:
+            if name in fields:
+                return fields[name]
+        return None
 
     def _create_timeline_figure(
         self, timeline_data: List[Dict], context: dict
@@ -174,25 +176,25 @@ class PerfVisualizerPlugin(Plugin):
             hover_text = (
                 f"<b>算子ID:</b> {item['operator_id']}<br>"
                 f"<b>执行单元:</b> {unit}<br>"
-                f"<b>开始时间:</b> {item['start_ms']:.3f} ms<br>"
-                f"<b>结束时间:</b> {item['end_ms']:.3f} ms<br>"
-                f"<b>耗时:</b> {item['duration_ms']:.3f} ms<br>"
-                f"<b>日志行:</b> {item['start_line']}-{item['end_line']}"
+                f"<b>开始Cycle:</b> {item['start_cycle']}<br>"
+                f"<b>结束Cycle:</b> {item['end_cycle']}<br>"
+                f"<b>耗时:</b> {item['duration_cycles']} cycles<br>"
+                f"<b>日志行:</b> {item['start_line']}-{item['end_line']}<br>"
+                f"<b>规则:</b> {item.get('rule_name', 'N/A')}"
             )
 
-            # 添加metrics信息
-            if item["metrics"]:
-                hover_text += "<br><b>指标:</b>"
-                for key, value in item["metrics"].items():
-                    if isinstance(value, dict) and "value" in value:
-                        hover_text += f"<br>  {key}: {value['value']} {value.get('unit', '')}"
+            # 添加performance信息
+            if item["performance"]:
+                hover_text += "<br><b>性能指标:</b>"
+                for key, value in item["performance"].items():
+                    hover_text += f"<br>  {key}: {value}"
 
             fig.add_trace(
                 go.Bar(
                     name=unit,
-                    x=[item["duration_ms"]],
+                    x=[item["duration_cycles"]],
                     y=[unit],
-                    base=[item["start_ms"]],
+                    base=[item["start_cycle"]],
                     orientation="h",
                     marker=dict(
                         color=unit_colors[unit],
@@ -209,7 +211,7 @@ class PerfVisualizerPlugin(Plugin):
                 text=config["title"], font=dict(size=20, color="#2c3e50"), x=0.5
             ),
             xaxis=dict(
-                title="时间 (ms)",
+                title="Cycle",
                 titlefont=dict(size=14, color="#34495e"),
                 showgrid=True,
                 gridcolor="#ecf0f1",
@@ -307,14 +309,20 @@ class PerfVisualizerPlugin(Plugin):
             ]
 
     def _generate_histogram(self, pairs: List[Dict]) -> str:
-        """生成耗时分布直方图"""
+        """生成耗时分布直方图（基于cycle）"""
         try:
             import plotly.graph_objects as go
 
-            # 提取耗时数据（毫秒）
-            durations = [
-                p["duration_seconds"] * 1000 for p in pairs if p["duration_seconds"]
-            ]
+            # 提取耗时数据（cycles）
+            durations = []
+            for p in pairs:
+                perf = p.get("performance", {})
+                # 尝试从performance中获取任何duration字段
+                for key, value in perf.items():
+                    if "duration" in key.lower() or "cycle" in key.lower():
+                        if isinstance(value, (int, float)):
+                            durations.append(value)
+                            break
 
             if not durations:
                 warning("[性能可视化] 没有耗时数据")
@@ -340,7 +348,7 @@ class PerfVisualizerPlugin(Plugin):
                     x=0.5,
                 ),
                 xaxis=dict(
-                    title="耗时 (ms)",
+                    title="耗时 (cycles)",
                     titlefont=dict(size=14),
                     showgrid=True,
                     gridcolor="#ecf0f1",
