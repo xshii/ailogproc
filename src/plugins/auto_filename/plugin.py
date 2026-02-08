@@ -8,6 +8,8 @@ from src.plugins.base import Plugin, get_target_column
 
 
 from src.utils import info, warning
+
+
 class AutoFilenamePlugin(Plugin):
     """自动文件名小插件 - Level 4"""
 

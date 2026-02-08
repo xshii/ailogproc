@@ -81,7 +81,9 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
         self.assertTrue(result_file.endswith(".xlsx"), "输出文件应该是 .xlsx 格式")
 
         # 验证文件在正确的目录
-        self.assertEqual(os.path.dirname(result_file), self.temp_dir, "文件应该在临时目录")
+        self.assertEqual(
+            os.path.dirname(result_file), self.temp_dir, "文件应该在临时目录"
+        )
 
         print(f"✓ 测试通过！")
         print(f"  原始文件名: {output_file}")
@@ -132,7 +134,9 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
 
                 # 验证结果（auto_filename 可能修改文件名）
                 self.assertIsNotNone(result_file)
-                self.assertTrue(os.path.exists(result_file), f"文件应该存在: {result_file}")
+                self.assertTrue(
+                    os.path.exists(result_file), f"文件应该存在: {result_file}"
+                )
 
                 print(f"✓ API Mock 测试通过！")
                 print(f"  API 被调用次数: {mock_get.call_count}")

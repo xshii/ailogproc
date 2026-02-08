@@ -12,8 +12,6 @@ from src.utils import setup_logger, get_logger, info
 from src.workflow import process_log_to_excel
 
 
-
-
 def _load_logger_config():
     """加载日志配置"""
     config_file = "src/utils/logger_config.yaml"
@@ -116,9 +114,9 @@ def main():
     # 执行主流程（传递用户指定的文件路径，None 表示由插件自动查找）
     process_log_to_excel(
         excel_file=excel_file,  # None 表示由 dld_configtmp 插件查找默认模板
-        trace_file=None,        # None 表示由 config_parser 插件查找默认 trace
+        trace_file=None,  # None 表示由 config_parser 插件查找默认 trace
         output_file=output_file,
-        sheet_name=sheet_name
+        sheet_name=sheet_name,
     )
 
 

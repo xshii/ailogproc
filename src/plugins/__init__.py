@@ -10,6 +10,7 @@ from src.plugins.auto_filename import AutoFilenamePlugin
 
 
 from src.utils import info, warning, error
+
 # 插件注册表
 PLUGIN_REGISTRY = {
     "dld_configtmp": DownloadTemplatePlugin,
@@ -71,11 +72,15 @@ def _print_plugin_header():
     info("\n" + "=" * 60)
     info("开始执行插件")
     info("=" * 60)
+
+
 def _print_plugin_footer():
     """打印插件执行尾部"""
     info("\n" + "=" * 60)
     info("插件执行完成")
     info("=" * 60)
+
+
 def _execute_single_plugin(plugin, context):
     """执行单个插件
 

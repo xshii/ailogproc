@@ -7,7 +7,9 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 
@@ -33,11 +35,7 @@ class TestTopKeywordConfig(unittest.TestCase):
         plugin.config["top_keyword"] = "MainConfig"
 
         context = {
-            "excel_writer_config": {
-                "top_table": {
-                    "log_keyword": "DifferentKeyword"
-                }
-            }
+            "excel_writer_config": {"top_table": {"log_keyword": "DifferentKeyword"}}
         }
 
         top_keyword = plugin._get_top_keyword(context)
@@ -50,13 +48,7 @@ class TestTopKeywordConfig(unittest.TestCase):
         """测试：从 excel_writer_config 获取"""
         plugin = ConstraintCheckerPlugin()
 
-        context = {
-            "excel_writer_config": {
-                "top_table": {
-                    "log_keyword": "CustomTop"
-                }
-            }
-        }
+        context = {"excel_writer_config": {"top_table": {"log_keyword": "CustomTop"}}}
 
         top_keyword = plugin._get_top_keyword(context)
 
@@ -75,13 +67,7 @@ class TestTopKeywordConfig(unittest.TestCase):
         self.assertEqual(top_keyword, "opSch")
 
         # 2. excel_writer 有配置 → 使用 excel_writer 的
-        context = {
-            "excel_writer_config": {
-                "top_table": {
-                    "log_keyword": "ExcelTop"
-                }
-            }
-        }
+        context = {"excel_writer_config": {"top_table": {"log_keyword": "ExcelTop"}}}
         top_keyword = plugin._get_top_keyword(context)
         print(f"  2. excel_writer 配置: {top_keyword}")
         self.assertEqual(top_keyword, "ExcelTop")
@@ -97,9 +83,7 @@ class TestTopKeywordConfig(unittest.TestCase):
         plugin = ConstraintCheckerPlugin()
 
         # context 中没有 excel_writer_config
-        context = {
-            "some_other_config": {}
-        }
+        context = {"some_other_config": {}}
 
         top_keyword = plugin._get_top_keyword(context)
 

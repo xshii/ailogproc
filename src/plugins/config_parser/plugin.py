@@ -9,6 +9,8 @@ from src.plugins.base import Plugin
 
 
 from src.utils import info
+
+
 class ConfigParserPlugin(Plugin):
     """配置解析插件 - Level 1 (Extractor)"""
 
@@ -70,7 +72,9 @@ class ConfigParserPlugin(Plugin):
                     return self._find_latest_trace_multi_pattern(path, patterns)
 
         # 没有配置 path，使用 search_dirs（支持多个目录）
-        search_dirs = default_config.get("search_dirs", [default_config.get("search_dir")])
+        search_dirs = default_config.get(
+            "search_dirs", [default_config.get("search_dir")]
+        )
         if isinstance(search_dirs, str):
             search_dirs = [search_dirs]
 
@@ -90,7 +94,9 @@ class ConfigParserPlugin(Plugin):
 
         return None
 
-    def _find_latest_trace_multi_pattern(self, directory: str, patterns: list) -> str | None:
+    def _find_latest_trace_multi_pattern(
+        self, directory: str, patterns: list
+    ) -> str | None:
         """在目录中使用多个模式查找最新的trace文件"""
         for pattern in patterns:
             trace_file = self._find_latest_trace(directory, pattern)

@@ -137,6 +137,7 @@ class TestAutoFilenamePlugin(unittest.TestCase):
         # Mock get_cell_value_smart 方法
         def mock_get_cell(row, col):
             return None
+
         processor.get_cell_value_smart = mock_get_cell
 
         context = {

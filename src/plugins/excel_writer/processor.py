@@ -650,6 +650,7 @@ class ExcelProcessor:
         info(f"文件大小: {file_size:,} 字节")
         self._try_open_in_explorer(abs_path)
         info(f"{'=' * 60}\n")
+
     def _try_open_in_explorer(self, abs_path):
         """尝试在资源管理器中打开（仅Windows）"""
         if sys.platform == "win32":
@@ -672,6 +673,7 @@ class ExcelProcessor:
         info("  2. 磁盘空间是否充足")
         info("  3. 路径是否正确")
         info(f"{'=' * 60}\n")
+
     def _print_permission_error(self, err):
         """打印权限错误"""
         info(f"\n{'=' * 60}")

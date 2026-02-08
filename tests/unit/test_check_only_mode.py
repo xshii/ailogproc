@@ -8,7 +8,9 @@ import sys
 import unittest
 from unittest.mock import Mock, patch
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 from src.plugins import run_plugins
@@ -33,12 +35,7 @@ class TestCheckOnlyMode(unittest.TestCase):
         mock_parser = Mock()
         mock_parser.group_by_top_config.return_value = []
 
-        context = {
-            "config_parser": {
-                "sections": [],
-                "parser": mock_parser
-            }
-        }
+        context = {"config_parser": {"sections": [], "parser": mock_parser}}
 
         result = plugin.execute(context)
 
@@ -65,12 +62,7 @@ class TestCheckOnlyMode(unittest.TestCase):
         mock_parser = Mock()
         mock_parser.group_by_top_config.return_value = []
 
-        context = {
-            "config_parser": {
-                "sections": [],
-                "parser": mock_parser
-            }
-        }
+        context = {"config_parser": {"sections": [], "parser": mock_parser}}
 
         result = plugin.execute(context)
 
@@ -101,10 +93,7 @@ class TestCheckOnlyMode(unittest.TestCase):
         mock_plugin2.dependencies = []
         mock_plugin2.__class__.__name__ = "Plugin2"
         # 返回停止标志
-        mock_plugin2.execute.return_value = {
-            "result": "plugin2",
-            "stop_pipeline": True
-        }
+        mock_plugin2.execute.return_value = {"result": "plugin2", "stop_pipeline": True}
 
         mock_plugin3 = Mock()
         mock_plugin3.level = 3

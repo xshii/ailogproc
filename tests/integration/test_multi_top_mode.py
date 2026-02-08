@@ -161,7 +161,9 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
         plugin = ExcelWriterPlugin()
         config = plugin.config
 
-        multi_top_mode = config.get("top_table", {}).get("multi_top_mode", "multi_sheets")
+        multi_top_mode = config.get("top_table", {}).get(
+            "multi_top_mode", "multi_sheets"
+        )
         print(f"✓ 当前配置:")
         print(f"  multi_top_mode: {multi_top_mode}")
 

@@ -15,6 +15,8 @@ from src.plugins.base import Plugin
 
 
 from src.utils import info, warning, error
+
+
 class DownloadTemplatePlugin(Plugin):
     """模板下载插件 - Level 0 (预处理层)"""
 
@@ -83,7 +85,9 @@ class DownloadTemplatePlugin(Plugin):
             version = manifest.get("current_version")
 
         if not template_path:
-            raise FileNotFoundError("未找到可用的模板文件，请将模板放到 templates/ 目录或通过命令行指定")
+            raise FileNotFoundError(
+                "未找到可用的模板文件，请将模板放到 templates/ 目录或通过命令行指定"
+            )
 
         info(f"  ✓ 使用模板: {template_path}")
 
@@ -149,9 +153,7 @@ class DownloadTemplatePlugin(Plugin):
                 info(f"  ✓ 已是最新版本: {version}")
                 return None
 
-            file_content = self._download_template_file(
-                metadata, api_url, timeout
-            )
+            file_content = self._download_template_file(metadata, api_url, timeout)
             if not file_content:
                 return None
 
@@ -219,9 +221,7 @@ class DownloadTemplatePlugin(Plugin):
 
         return True
 
-    def _save_template(
-        self, file_content: bytes, version: str, manifest: dict
-    ) -> str:
+    def _save_template(self, file_content: bytes, version: str, manifest: dict) -> str:
         """保存模板文件并备份旧版本"""
         storage = self.config.get("storage", {})
         templates_dir = storage.get("templates_dir", "templates")
@@ -249,7 +249,9 @@ class DownloadTemplatePlugin(Plugin):
 
         # 获取搜索目录列表
         storage = self.config.get("storage", {})
-        search_dirs = storage.get("search_dirs", [storage.get("templates_dir", "templates")])
+        search_dirs = storage.get(
+            "search_dirs", [storage.get("templates_dir", "templates")]
+        )
         if isinstance(search_dirs, str):
             search_dirs = [search_dirs]
 
@@ -309,6 +311,7 @@ class DownloadTemplatePlugin(Plugin):
         for backup in backups[max_keep:]:
             backup.unlink()
             info(f"  ✓ 清理旧备份: {backup.name}")
+
     def _update_manifest(
         self, manifest: dict, template_path: str, version: str, downloaded: bool
     ):

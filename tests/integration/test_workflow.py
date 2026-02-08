@@ -103,7 +103,9 @@ thread0	cyc=0x4000 |- powerLevel  = 20  (0x14)
 
             print(f"\n✓ 测试通过！输出文件: {result_file}")
 
-    def test_workflow_without_api_download(self, temp_dir, sample_trace_file, template_file):
+    def test_workflow_without_api_download(
+        self, temp_dir, sample_trace_file, template_file
+    ):
         """测试 workflow - 不使用 API 下载（使用本地模板）"""
         output_file = os.path.join(temp_dir, "output_local.xlsx")
 
@@ -222,7 +224,9 @@ class TestDldTmpPluginMocking:
             mock_get.side_effect = [mock_metadata_resp, mock_file_resp]
 
             # 创建插件实例（需要 mock config）
-            with patch.object(DownloadTemplatePlugin, "_load_config", return_value=mock_config):
+            with patch.object(
+                DownloadTemplatePlugin, "_load_config", return_value=mock_config
+            ):
                 plugin = DownloadTemplatePlugin()
 
                 # 执行插件

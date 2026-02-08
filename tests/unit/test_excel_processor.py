@@ -134,7 +134,9 @@ class TestExcelProcessor(unittest.TestCase):
 
         # 调用方法（不验证具体结果，只确保不抛出异常）
         try:
-            result = processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
+            result = processor.match_and_fill_top_table(
+                log_section, start_row=1, end_row=3
+            )
             # 应该返回匹配结果（可能是 int 或 dict）
             self.assertIsNotNone(result)
         except Exception as e:

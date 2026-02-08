@@ -8,7 +8,9 @@ import sys
 import unittest
 from unittest.mock import Mock
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+sys.path.insert(
+    0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
 from src.plugins.excel_writer.plugin import ExcelWriterPlugin
 
@@ -23,12 +25,10 @@ class TestKeywordPlaceholder(unittest.TestCase):
         self.plugin.config = {
             "enable": True,
             "keyword_mapping": {
-                "IN__x__Cfg": r'InxCfg\d+',  # 占位符关键字（使用 __x__）
-                "ExCfg-ER": r'ERCfg\s*\(grp\s*=\s*\d+\)',  # 普通关键字
+                "IN__x__Cfg": r"InxCfg\d+",  # 占位符关键字（使用 __x__）
+                "ExCfg-ER": r"ERCfg\s*\(grp\s*=\s*\d+\)",  # 普通关键字
             },
-            "top_table": {
-                "log_keyword": "opSch"
-            }
+            "top_table": {"log_keyword": "opSch"},
         }
 
     def test_find_matching_keyword_with_placeholder(self):
@@ -49,7 +49,9 @@ class TestKeywordPlaceholder(unittest.TestCase):
 
         for log_section, expected_excel_keyword in test_cases:
             result = self.plugin._find_matching_keyword(log_section, keyword_mapping)
-            print(f"  日志: {log_section:15} → Excel: {result:10} (期望: {expected_excel_keyword})")
+            print(
+                f"  日志: {log_section:15} → Excel: {result:10} (期望: {expected_excel_keyword})"
+            )
             self.assertEqual(result, expected_excel_keyword)
 
     def test_find_matching_keyword_without_placeholder(self):
@@ -92,16 +94,20 @@ class TestKeywordPlaceholder(unittest.TestCase):
 
         mock_processor.find_sub_table = mock_find_sub_table
 
-        keyword_mapping = {"IN__x__Cfg": r'InxCfg\d+'}
+        keyword_mapping = {"IN__x__Cfg": r"InxCfg\d+"}
 
         # 执行扫描
-        keyword_info = self.plugin._scan_sub_table_positions(mock_processor, keyword_mapping)
+        keyword_info = self.plugin._scan_sub_table_positions(
+            mock_processor, keyword_mapping
+        )
 
         print(f"\n扫描结果：")
         for keyword, info in sorted(keyword_info.items()):
-            print(f"  {keyword}: 行 {info['orig_start']}-{info['orig_end']}, "
-                  f"模板: {info.get('template', 'N/A')}, "
-                  f"索引: {info.get('index', 'N/A')}")
+            print(
+                f"  {keyword}: 行 {info['orig_start']}-{info['orig_end']}, "
+                f"模板: {info.get('template', 'N/A')}, "
+                f"索引: {info.get('index', 'N/A')}"
+            )
 
         # 验证
         self.assertIn("IN0Cfg", keyword_info)
@@ -127,6 +133,7 @@ class TestKeywordPlaceholder(unittest.TestCase):
 
         # Mock processor
         mock_processor = Mock()
+
         def mock_find_sub_table(keyword):
             positions = {
                 "IN0Cfg": (10, 15),
@@ -137,10 +144,12 @@ class TestKeywordPlaceholder(unittest.TestCase):
 
         mock_processor.find_sub_table = mock_find_sub_table
 
-        keyword_mapping = {"IN__x__Cfg": r'InxCfg\d+'}
+        keyword_mapping = {"IN__x__Cfg": r"InxCfg\d+"}
 
         # 1. 扫描 Excel 中的子表位置
-        keyword_info = self.plugin._scan_sub_table_positions(mock_processor, keyword_mapping)
+        keyword_info = self.plugin._scan_sub_table_positions(
+            mock_processor, keyword_mapping
+        )
 
         # 2. 模拟日志 sections
         log_sections = [
@@ -152,7 +161,9 @@ class TestKeywordPlaceholder(unittest.TestCase):
         print("\n日志 sections → Excel 关键字映射：")
         for section in log_sections:
             log_name = section["name"]
-            excel_keyword = self.plugin._find_matching_keyword(log_name, keyword_mapping)
+            excel_keyword = self.plugin._find_matching_keyword(
+                log_name, keyword_mapping
+            )
 
             # 验证是否在 keyword_info 中
             if excel_keyword in keyword_info:
@@ -162,7 +173,9 @@ class TestKeywordPlaceholder(unittest.TestCase):
                 row_range = "未找到"
                 status = "✗"
 
-            print(f"  {status} 日志: {log_name:10} → Excel: {excel_keyword:10} ({row_range})")
+            print(
+                f"  {status} 日志: {log_name:10} → Excel: {excel_keyword:10} ({row_range})"
+            )
 
             # 断言
             self.assertIn(excel_keyword, keyword_info)

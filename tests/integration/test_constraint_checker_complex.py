@@ -46,7 +46,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {"cfgGroup": "0"}},  # 子表
-
             # ===== 组2（索引1）：违反单组约束 =====
             {
                 "name": "opSch",
@@ -58,7 +57,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {"cfgGroup": "1"}},
-
             # ===== 组3（索引2）：触发多组违规 =====
             {
                 "name": "opSch",
@@ -70,7 +68,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {"cfgGroup": "2"}},
-
             # ===== 组4（索引3）：违反单组约束 + 多组违规 =====
             {
                 "name": "opSch",
@@ -83,7 +80,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {"cfgGroup": "3"}},
-
             # ===== 组5（索引4）：违反单组约束 =====
             {
                 "name": "opSch",
@@ -122,8 +118,14 @@ class TestConstraintCheckerComplex(unittest.TestCase):
         violations = result["violations"]
 
         # 按类型分类违规
-        single_violations = [v for v in violations if v["type"] in ["only_allow", "forbid"]]
-        multi_violations = [v for v in violations if v["type"] in ["same_value", "sequence", "conditional"]]
+        single_violations = [
+            v for v in violations if v["type"] in ["only_allow", "forbid"]
+        ]
+        multi_violations = [
+            v
+            for v in violations
+            if v["type"] in ["same_value", "sequence", "conditional"]
+        ]
 
         print(f"\n单组约束违规: {len(single_violations)} 个")
         for idx, v in enumerate(single_violations, 1):
@@ -157,7 +159,7 @@ class TestConstraintCheckerComplex(unittest.TestCase):
         print(f"多组违规涉及的组: {sorted(multi_groups)}")
         self.assertTrue(
             2 in multi_groups or 3 in multi_groups,
-            "应该有涉及组3（索引2）或组4（索引3）的多组违规"
+            "应该有涉及组3（索引2）或组4（索引3）的多组违规",
         )
 
         # 打印总结
@@ -189,7 +191,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {}},
-
             # 组2：单组only_allow违规
             {
                 "name": "opSch",
@@ -201,7 +202,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {}},
-
             # 组3：多组same_value违规
             {
                 "name": "opSch",
@@ -213,7 +213,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {}},
-
             # 组4：单组forbid违规 + 多组违规
             {
                 "name": "opSch",
@@ -226,7 +225,6 @@ class TestConstraintCheckerComplex(unittest.TestCase):
                 },
             },
             {"name": "ERCfg", "fields": {}},
-
             # 组5：单组forbid违规（多条件触发）
             {
                 "name": "opSch",
@@ -271,7 +269,7 @@ class TestConstraintCheckerComplex(unittest.TestCase):
         self.assertIn("forbid", violation_types, "应该有forbid违规")
         self.assertTrue(
             "same_value" in violation_types or "sequence" in violation_types,
-            "应该有多组约束违规"
+            "应该有多组约束违规",
         )
 
 

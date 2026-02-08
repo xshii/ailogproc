@@ -13,11 +13,17 @@ from src.plugins.excel_writer.processor import ExcelProcessor
 
 
 from src.utils import info, error
+
+
 class ExcelWriterPlugin(Plugin):
     """Excel写入插件 - Level 3 (Processor)"""
 
     level = 3  # 处理层
-    dependencies = ["dld_configtmp", "config_parser", "constraint_checker"]  # 依赖模板下载、配置解析和约束检查插件
+    dependencies = [
+        "dld_configtmp",
+        "config_parser",
+        "constraint_checker",
+    ]  # 依赖模板下载、配置解析和约束检查插件
 
     def execute(self, context: dict) -> dict:
         """将配置信息写入Excel模板
@@ -40,12 +46,16 @@ class ExcelWriterPlugin(Plugin):
         # 获取输入参数
         # 优先使用 dld_configtmp 下载的模板，否则使用传入的 excel_file
         dld_configtmp_data = context.get("dld_configtmp", {})
-        excel_file = dld_configtmp_data.get("template_path") or context.get("excel_file")
+        excel_file = dld_configtmp_data.get("template_path") or context.get(
+            "excel_file"
+        )
         output_file = context.get("output_file")
         sheet_name = context.get("sheet_name")
 
         if not excel_file:
-            raise ValueError("excel_writer: context 中缺少 'excel_file' 或 'dld_configtmp.template_path'")
+            raise ValueError(
+                "excel_writer: context 中缺少 'excel_file' 或 'dld_configtmp.template_path'"
+            )
 
         # 获取 config_parser 的输出
         config_data = context.get("config_parser", {})
@@ -148,9 +158,7 @@ class ExcelWriterPlugin(Plugin):
                 matched = processor.match_and_fill_top_table(
                     top_section, start_row, end_row
                 )
-                print(
-                    f"[Excel写入] ✓ TopConfig #1: 顶格表格匹配 {len(matched)} 个字段"
-                )
+                print(f"[Excel写入] ✓ TopConfig #1: 顶格表格匹配 {len(matched)} 个字段")
             else:
                 error("[Excel写入] ✗ 未找到顶格表格")
             # 如果有多个 TopConfig，显示警告
@@ -176,9 +184,7 @@ class ExcelWriterPlugin(Plugin):
         info(f"[Excel写入] ✓ 保存完成: {output_file}")
         return {"output_file": output_file, "processor": processor}
 
-    def _process_multi_sheets(
-        self, excel_file, output_file, sheet_name, groups
-    ):
+    def _process_multi_sheets(self, excel_file, output_file, sheet_name, groups):
         """多工作表处理模式"""
         workbook, template_sheet, template_name = self._setup_multi_sheets_workbook(
             excel_file, sheet_name, len(groups)
@@ -301,10 +307,10 @@ class ExcelWriterPlugin(Plugin):
         keyword_info = {}
         for excel_keyword in keyword_mapping.keys():
             # 检查是否包含占位符 __x__
-            if '__x__' in excel_keyword:
+            if "__x__" in excel_keyword:
                 # 扫描所有可能的索引实例（0-9）
                 for idx in range(10):
-                    expanded_keyword = excel_keyword.replace('__x__', str(idx))
+                    expanded_keyword = excel_keyword.replace("__x__", str(idx))
                     start_row, end_row = processor.find_sub_table(expanded_keyword)
                     if start_row:
                         keyword_info[expanded_keyword] = {
@@ -374,17 +380,17 @@ class ExcelWriterPlugin(Plugin):
             match = re.match(log_pattern, section_name)
             if match:
                 # 检查是否包含占位符 __x__
-                if '__x__' in excel_keyword:
+                if "__x__" in excel_keyword:
                     # 从日志 section name 中提取数字索引
                     # 例如：InxCfg0 → 提取 0，InxCfg1 → 提取 1
-                    digit_match = re.search(r'(\d+)', section_name)
+                    digit_match = re.search(r"(\d+)", section_name)
                     if digit_match:
                         index = digit_match.group(1)
                         # 返回展开后的关键字：IN__x__Cfg → IN0Cfg
-                        return excel_keyword.replace('__x__', index)
+                        return excel_keyword.replace("__x__", index)
                     else:
                         # 如果没找到数字，使用 0
-                        return excel_keyword.replace('__x__', '0')
+                        return excel_keyword.replace("__x__", "0")
                 else:
                     # 普通关键字，直接返回
                     return excel_keyword
@@ -405,7 +411,9 @@ class ExcelWriterPlugin(Plugin):
         new_start = global_last_row + merge_rows
 
         # 复制子表并获取实际的结束行（copy_sub_table返回最后一行）
-        actual_end = processor.copy_sub_table(table_info["orig_start"], table_info["orig_end"], new_start)
+        actual_end = processor.copy_sub_table(
+            table_info["orig_start"], table_info["orig_end"], new_start
+        )
         # 使用 new_start+1 因为子表从 insert_after_row+1 开始
         processor.match_and_fill_sub_table(section, new_start + 1, actual_end)
         table_info["count"] += 1
@@ -427,7 +435,9 @@ class ExcelWriterPlugin(Plugin):
         for start_row, end_row in rows_to_delete:
             # 扩展删除范围，包括子表后的空行（最多2行）
             extended_end = end_row
-            for check_row in range(end_row + 1, min(end_row + 3, processor.sheet.max_row + 1)):
+            for check_row in range(
+                end_row + 1, min(end_row + 3, processor.sheet.max_row + 1)
+            ):
                 if self._is_empty_row(processor, check_row):
                     extended_end = check_row
                 else:

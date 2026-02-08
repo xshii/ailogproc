@@ -88,7 +88,9 @@ class TestExcelProcessorSubTable(unittest.TestCase):
 
         # 调用方法
         try:
-            result = processor.match_and_fill_sub_table(log_section, start_row=2, end_row=3)
+            result = processor.match_and_fill_sub_table(
+                log_section, start_row=2, end_row=3
+            )
             self.assertIsNotNone(result)
         except Exception as e:
             # 可能因为配置不完整而失败，但不应该崩溃

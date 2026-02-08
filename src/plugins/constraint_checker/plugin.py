@@ -53,11 +53,15 @@ class ConstraintCheckerPlugin(Plugin):
         violations = []
 
         # 1. 检查单组约束
-        single_violations = self._check_single_constraints(sections, rules, parser, context)
+        single_violations = self._check_single_constraints(
+            sections, rules, parser, context
+        )
         violations.extend(single_violations)
 
         # 2. 检查多组约束
-        multi_violations = self._check_multi_constraints(sections, rules, parser, context)
+        multi_violations = self._check_multi_constraints(
+            sections, rules, parser, context
+        )
         violations.extend(multi_violations)
 
         # 检查是否为仅检查模式
@@ -105,8 +109,12 @@ class ConstraintCheckerPlugin(Plugin):
 
         # 获取所有规则文件（格式: v1.0.0_20240115.yaml）
         import re
-        rule_files = [f for f in os.listdir(rules_path)
-                     if re.match(r'v\d+\.\d+\.\d+_\d+\.yaml$', f)]
+
+        rule_files = [
+            f
+            for f in os.listdir(rules_path)
+            if re.match(r"v\d+\.\d+\.\d+_\d+\.yaml$", f)
+        ]
 
         if not rule_files:
             warning(f"[约束检查] 规则目录中没有规则文件: {rules_path}")
@@ -133,7 +141,7 @@ class ConstraintCheckerPlugin(Plugin):
         # 加载规则文件
         rule_file = os.path.join(rules_path, f"v{target_version}.yaml")
         try:
-            with open(rule_file, 'r', encoding='utf-8') as f:
+            with open(rule_file, "r", encoding="utf-8") as f:
                 rules = yaml.safe_load(f)
 
             if not rules:
@@ -167,9 +175,7 @@ class ConstraintCheckerPlugin(Plugin):
 
             # 检查每个单组约束规则
             for rule in single_constraints:
-                rule_violations = self._check_single_rule(
-                    flat_fields, rule, group_idx
-                )
+                rule_violations = self._check_single_rule(flat_fields, rule, group_idx)
                 violations.extend(rule_violations)
 
         return violations
