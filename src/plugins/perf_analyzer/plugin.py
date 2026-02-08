@@ -49,7 +49,10 @@ class PerfAnalyzerPlugin(Plugin):
         if self.config["grouping"]["by_execution_unit"]:
             by_unit = self._analyze_by_unit(pairs)
 
-        # 3. 计算 MFU（如果启用）
+        # 3. 按来源分组统计（用于多文件对比）
+        by_source = self._analyze_by_source(pairs)
+
+        # 4. 计算 MFU（如果启用）
         mfu_result = {}
         if self.config["analysis"].get("compute_mfu", False):
             mfu_result = self._compute_mfu(pairs, summary)
@@ -59,6 +62,7 @@ class PerfAnalyzerPlugin(Plugin):
         result = {
             "summary": summary,
             "by_unit": by_unit,
+            "by_source": by_source,
             "mfu": mfu_result,
         }
 
@@ -160,6 +164,53 @@ class PerfAnalyzerPlugin(Plugin):
 
         return stats
 
+    def _analyze_by_source(self, pairs: List[Dict]) -> Dict:
+        """按来源分组统计（用于多文件对比）"""
+        by_source = {}
+
+        for pair in pairs:
+            source = pair.get("source", "unknown")
+            duration = self._extract_duration(pair)
+
+            if duration is None:
+                continue
+
+            if source not in by_source:
+                by_source[source] = []
+
+            by_source[source].append(duration)
+
+        # 计算每个来源的统计
+        stats = {}
+        freq_ghz = self.config["hardware"].get("frequency_ghz")
+
+        for source, durations in by_source.items():
+            if not durations:
+                continue
+
+            durations_sorted = sorted(durations)
+            n = len(durations)
+
+            source_stats = {
+                "count": n,
+                "min_cycles": min(durations),
+                "max_cycles": max(durations),
+                "mean_cycles": sum(durations) / n,
+                "median_cycles": durations_sorted[n // 2],
+                "p90_cycles": durations_sorted[int(n * 0.90)],
+                "p95_cycles": durations_sorted[int(n * 0.95)],
+            }
+
+            # 如果配置了频率，也计算以时间为单位
+            if freq_ghz:
+                source_stats["mean_ms"] = source_stats["mean_cycles"] / (freq_ghz * 1e6)
+                source_stats["p90_ms"] = source_stats["p90_cycles"] / (freq_ghz * 1e6)
+                source_stats["p95_ms"] = source_stats["p95_cycles"] / (freq_ghz * 1e6)
+
+            stats[source] = source_stats
+
+        return stats
+
     def _compute_mfu(self, pairs: List[Dict], summary: Dict) -> Dict:
         """计算 MFU (Model FLOPs Utilization)
 
@@ -244,6 +295,7 @@ class PerfAnalyzerPlugin(Plugin):
             report = {
                 "summary": result["summary"],
                 "by_unit": result["by_unit"],
+                "by_source": result.get("by_source", {}),
                 "mfu": result.get("mfu", {}),
                 "total_pairs": len(pairs),
             }
@@ -270,6 +322,7 @@ class PerfAnalyzerPlugin(Plugin):
                 # 写入表头
                 writer.writerow(
                     [
+                        "Source",
                         "Correlation ID",
                         "Rule Name",
                         "Execution Unit",
@@ -285,6 +338,7 @@ class PerfAnalyzerPlugin(Plugin):
 
                     writer.writerow(
                         [
+                            pair.get("source", ""),
                             pair.get("correlation_id", ""),
                             pair.get("rule_name", ""),
                             pair.get("execution_unit", ""),

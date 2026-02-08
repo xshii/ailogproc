@@ -1,8 +1,16 @@
 # 性能日志解析器配置
 enable: true
 
-# 日志文件路径（null 表示从命令行或上下文获取）
-log_file: null
+# 日志文件路径（支持多文件）
+# 方式1：单个文件（向后兼容）
+# log_file: "/path/to/perf.log"
+
+# 方式2：多个文件（用于性能对比）
+log_files:
+  - label: "device0"
+    path: null  # null 表示从命令行或上下文获取
+  # - label: "device1"
+  #   path: "/path/to/device1.log"
 
 # 提取规则组（支持多组不同的模式）
 extraction_rules:

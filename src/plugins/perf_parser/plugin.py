@@ -18,58 +18,130 @@ class PerfParserPlugin(Plugin):
     dependencies = []  # 不依赖其他插件
 
     def execute(self, context: dict) -> dict:
-        """解析性能日志
+        """解析性能日志（支持多文件）
 
         Args:
             context: 上下文字典，包含：
-                - perf_log_file: 性能日志文件路径（可选）
+                - perf_log_file: 性能日志文件路径（可选，单文件模式）
+                - perf_log_files: 性能日志文件列表（可选，多文件模式）
 
         Returns:
             {
-                'pairs': [关联的事件对],
-                'statistics': {统计信息}
+                'pairs': [关联的事件对，每个包含 source 字段],
+                'statistics': {
+                    'total': 总体统计,
+                    'by_source': {按来源分组的统计}
+                }
             }
         """
-        # 获取日志文件路径
-        log_file = context.get("perf_log_file") or self.config.get("log_file")
+        # 获取日志文件配置
+        log_sources = self._get_log_sources(context)
 
-        if not log_file:
+        if not log_sources:
             error("[性能日志解析] 未指定日志文件")
             return {"pairs": [], "statistics": {}}
 
-        info(f"[性能日志解析] 开始解析: {log_file}")
+        info(f"[性能日志解析] 开始解析 {len(log_sources)} 个日志文件")
 
-        # 读取并解析日志
-        events = self._parse_log_file(log_file)
-        info(f"[性能日志解析] 解析到 {len(events)} 个事件")
+        # 解析所有日志文件
+        all_pairs = []
+        all_stats_by_source = {}
+        total_events = 0
+        total_unpaired = 0
 
-        # 关联开始/结束事件
-        pairs, unpaired = self._correlate_events(events)
-        info(f"[性能日志解析] 找到 {len(pairs)} 对关联事件")
+        for source_label, log_path in log_sources:
+            info(f"[性能日志解析] 解析 [{source_label}]: {log_path}")
 
-        # 对未匹配的事件打印告警并记录日志
-        if unpaired:
-            warning(f"[性能日志解析] {len(unpaired)} 个事件未找到配对")
-            for event in unpaired:
-                warning(
-                    f"  - 未配对: {event['event_type']} 事件，"
-                    f"规则={event['rule_name']}, "
-                    f"行号={event['line_number']}, "
-                    f"字段={event['fields']}"
-                )
+            # 读取并解析日志
+            events = self._parse_log_file(log_path)
+            info(f"[性能日志解析] [{source_label}] 解析到 {len(events)} 个事件")
 
-            # 记录到文件
-            self._log_unpaired_events(unpaired, log_file)
+            # 关联开始/结束事件
+            pairs, unpaired = self._correlate_events(events, source_label)
+            info(f"[性能日志解析] [{source_label}] 找到 {len(pairs)} 对关联事件")
 
-        # 统计信息
-        statistics = self._compute_statistics(len(events), pairs, len(unpaired))
+            # 对未匹配的事件打印告警并记录日志
+            if unpaired:
+                warning(f"[性能日志解析] [{source_label}] {len(unpaired)} 个事件未找到配对")
+                for event in unpaired:
+                    warning(
+                        f"  - 未配对: {event['event_type']} 事件，"
+                        f"规则={event['rule_name']}, "
+                        f"行号={event['line_number']}, "
+                        f"字段={event['fields']}"
+                    )
+
+                # 记录到文件
+                self._log_unpaired_events(unpaired, log_path, source_label)
+
+            # 统计信息
+            source_stats = self._compute_source_statistics(len(events), pairs, len(unpaired))
+            all_stats_by_source[source_label] = source_stats
+
+            # 累加
+            all_pairs.extend(pairs)
+            total_events += len(events)
+            total_unpaired += len(unpaired)
+
+        # 总体统计
+        statistics = {
+            "total": {
+                "total_events": total_events,
+                "paired_count": len(all_pairs),
+                "unpaired_count": total_unpaired,
+                "source_count": len(log_sources),
+            },
+            "by_source": all_stats_by_source,
+        }
+
+        info(f"[性能日志解析] 完成，共 {len(all_pairs)} 对关联事件")
 
         result = {
-            "pairs": pairs,
+            "pairs": all_pairs,
             "statistics": statistics,
         }
 
         return result
+
+    def _get_log_sources(self, context: dict) -> List[Tuple[str, str]]:
+        """获取日志文件来源列表
+
+        Returns:
+            [(source_label, log_path), ...]
+        """
+        sources = []
+
+        # 优先从 context 获取（命令行传入）
+        ctx_file = context.get("perf_log_file")
+        ctx_files = context.get("perf_log_files")
+
+        if ctx_files:
+            # 多文件模式
+            for item in ctx_files:
+                if isinstance(item, dict):
+                    sources.append((item.get("label", "unknown"), item.get("path")))
+                else:
+                    # 简化模式，使用文件名作为 label
+                    label = os.path.basename(item).split('.')[0]
+                    sources.append((label, item))
+        elif ctx_file:
+            # 单文件模式（向后兼容）
+            label = os.path.basename(ctx_file).split('.')[0]
+            sources.append((label, ctx_file))
+        else:
+            # 从配置读取
+            cfg_files = self.config.get("log_files")
+            if cfg_files:
+                for item in cfg_files:
+                    if isinstance(item, dict):
+                        path = item.get("path")
+                        if path:
+                            sources.append((item.get("label", "unknown"), path))
+                    elif isinstance(item, str):
+                        label = os.path.basename(item).split('.')[0]
+                        sources.append((label, item))
+
+        return sources
 
     def _parse_log_file(self, log_file: str) -> List[Dict]:
         """解析日志文件，使用多规则提取
@@ -183,9 +255,13 @@ class PerfParserPlugin(Plugin):
         return event
 
     def _correlate_events(
-        self, events: List[Dict]
+        self, events: List[Dict], source_label: str
     ) -> Tuple[List[Dict], List[Dict]]:
         """关联开始和结束事件
+
+        Args:
+            events: 事件列表
+            source_label: 来源标识
 
         Returns:
             (配对的事件列表, 未配对的事件列表)
@@ -217,7 +293,7 @@ class PerfParserPlugin(Plugin):
 
             # 配对该规则的开始和结束事件
             rule_pairs, rule_unpaired = self._pair_events(
-                rule_events["starts"], rule_events["ends"], match_fields, rule
+                rule_events["starts"], rule_events["ends"], match_fields, rule, source_label
             )
 
             pairs.extend(rule_pairs)
@@ -231,6 +307,7 @@ class PerfParserPlugin(Plugin):
         end_events: List[Dict],
         match_fields: List[str],
         rule: dict,
+        source_label: str,
     ) -> Tuple[List[Dict], List[Dict]]:
         """配对开始和结束事件
 
@@ -239,6 +316,7 @@ class PerfParserPlugin(Plugin):
             end_events: 结束事件列表
             match_fields: 需要匹配的字段名列表
             rule: 提取规则配置
+            source_label: 来源标识
 
         Returns:
             (配对列表, 未配对列表)
@@ -278,6 +356,7 @@ class PerfParserPlugin(Plugin):
 
                 pairs.append(
                     {
+                        "source": source_label,
                         "correlation_id": str(correlation_id),
                         "execution_unit": execution_unit,
                         "start_event": start,
@@ -345,10 +424,10 @@ class PerfParserPlugin(Plugin):
 
         return performance
 
-    def _compute_statistics(
+    def _compute_source_statistics(
         self, total_events: int, pairs: List[Dict], unpaired_count: int
     ) -> Dict:
-        """计算统计信息"""
+        """计算单个来源的统计信息"""
         stats = {
             "total_events": total_events,
             "paired_count": len(pairs),
@@ -373,7 +452,9 @@ class PerfParserPlugin(Plugin):
 
         return stats
 
-    def _log_unpaired_events(self, unpaired: List[Dict], source_log_file: str) -> None:
+    def _log_unpaired_events(
+        self, unpaired: List[Dict], source_log_file: str, source_label: str = "unknown"
+    ) -> None:
         """记录未配对事件到日志文件
 
         Args:
@@ -396,6 +477,7 @@ class PerfParserPlugin(Plugin):
                 # 写入时间戳和分隔符
                 f.write("\n" + "=" * 80 + "\n")
                 f.write(f"时间: {datetime.now().isoformat()}\n")
+                f.write(f"来源: {source_label}\n")
                 f.write(f"源文件: {source_log_file}\n")
                 f.write(f"未配对事件数: {len(unpaired)}\n")
                 f.write("=" * 80 + "\n\n")

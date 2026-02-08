@@ -127,6 +127,7 @@ class PerfVisualizerPlugin(Plugin):
             timeline_data.append(
                 {
                     "index": idx,
+                    "source": pair.get("source", "unknown"),
                     "operator_id": operator_id,
                     "unit": unit,
                     "start_cycle": start_cycle,
@@ -160,9 +161,17 @@ class PerfVisualizerPlugin(Plugin):
         units = sorted(set(item["unit"] for item in timeline_data))
         unit_to_row = {unit: idx for idx, unit in enumerate(units)}
 
-        # 准备颜色映射
+        # 获取所有来源
+        sources = sorted(set(item["source"] for item in timeline_data))
+
+        # 准备颜色映射（按单元 + 来源）
         colors = self._get_color_scheme(len(units))
         unit_colors = {unit: colors[idx % len(colors)] for idx, unit in enumerate(units)}
+
+        # 为不同来源分配不同的透明度或色调
+        source_opacity = {}
+        for idx, source in enumerate(sources):
+            source_opacity[source] = 1.0 - (idx * 0.3)  # 第一个来源 1.0，第二个 0.7，等等
 
         # 创建图表
         fig = go.Figure()
@@ -170,10 +179,12 @@ class PerfVisualizerPlugin(Plugin):
         # 添加每个算子的执行条
         for item in timeline_data:
             unit = item["unit"]
+            source = item["source"]
             y_pos = unit_to_row[unit]
 
             # 悬停信息
             hover_text = (
+                f"<b>来源:</b> {source}<br>"
                 f"<b>算子ID:</b> {item['operator_id']}<br>"
                 f"<b>执行单元:</b> {unit}<br>"
                 f"<b>开始Cycle:</b> {item['start_cycle']}<br>"
@@ -189,15 +200,20 @@ class PerfVisualizerPlugin(Plugin):
                 for key, value in item["performance"].items():
                     hover_text += f"<br>  {key}: {value}"
 
+            # 根据来源调整颜色透明度
+            base_color = unit_colors[unit]
+            opacity = source_opacity.get(source, 1.0)
+
             fig.add_trace(
                 go.Bar(
-                    name=unit,
+                    name=f"{unit} ({source})",
                     x=[item["duration_cycles"]],
                     y=[unit],
                     base=[item["start_cycle"]],
                     orientation="h",
                     marker=dict(
-                        color=unit_colors[unit],
+                        color=base_color,
+                        opacity=opacity,
                         line=dict(color="white", width=0.5),
                     ),
                     hovertemplate=hover_text + "<extra></extra>",
