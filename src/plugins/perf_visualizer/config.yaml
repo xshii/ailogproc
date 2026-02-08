@@ -1,0 +1,70 @@
+# 性能可视化插件配置
+enable: true
+
+# 可视化类型
+visualizations:
+  # 是否生成甘特图（性能流水图）
+  gantt_chart: true
+  
+  # 是否生成直方图（耗时分布）
+  histogram: true
+  
+  # 是否生成时间线图
+  timeline: false
+
+# 甘特图配置
+gantt:
+  # 输出路径
+  output_path: "output/perf_gantt.html"
+  
+  # 图表标题
+  title: "性能流水图"
+  
+  # 按执行单元分组显示
+  group_by_unit: true
+  
+  # 是否显示耗时标签
+  show_duration: true
+  
+  # 颜色方案
+  color_scheme: "default"  # default | rainbow | monochrome
+  
+  # 图表高度（像素）
+  height: 600
+  
+  # 图表宽度（像素）
+  width: 1200
+
+# 直方图配置
+histogram:
+  # 输出路径
+  output_path: "output/perf_histogram.html"
+  
+  # 图表标题
+  title: "耗时分布直方图"
+  
+  # 分组数
+  bins: 20
+  
+  # 图表高度（像素）
+  height: 400
+  
+  # 图表宽度（像素）
+  width: 800
+
+# 时间线图配置
+timeline:
+  # 输出路径
+  output_path: "output/perf_timeline.html"
+  
+  # 图表标题
+  title: "事件时间线"
+  
+  # 图表高度（像素）
+  height: 500
+  
+  # 图表宽度（像素）
+  width: 1000
+
+# 可视化库选择
+library: "plotly"  # plotly | matplotlib | echarts

@@ -42,3 +42,4 @@ __pycache__/
 
 # Pylint 报告
 pylint_output.txt
+output/

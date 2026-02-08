@@ -1,0 +1,48 @@
+# 性能数据分析器配置
+enable: true
+
+# 分析选项
+analysis:
+  # 是否计算统计指标
+  compute_statistics: true
+  
+  # 是否检测异常值
+  detect_outliers: true
+  
+  # 异常值检测方法
+  outlier_method: "iqr"  # iqr | zscore | percentile
+  
+  # IQR方法参数
+  iqr_multiplier: 1.5
+  
+  # Z-score方法参数
+  zscore_threshold: 3.0
+  
+  # 百分位方法参数
+  percentile_lower: 5   # 低于此百分位的为异常
+  percentile_upper: 95  # 高于此百分位的为异常
+
+# 分组分析
+grouping:
+  # 是否按执行单元分组
+  by_execution_unit: true
+  
+  # 是否按时间窗口分组
+  by_time_window: false
+  
+  # 时间窗口大小（秒）
+  time_window_size: 60
+
+# 输出报告
+reporting:
+  # 是否生成JSON报告
+  generate_json: true
+  
+  # JSON报告路径
+  json_path: "output/perf_analysis.json"
+  
+  # 是否生成CSV报告
+  generate_csv: true
+  
+  # CSV报告路径
+  csv_path: "output/perf_analysis.csv"
