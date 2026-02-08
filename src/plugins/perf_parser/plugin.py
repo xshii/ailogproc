@@ -242,7 +242,7 @@ class PerfParserPlugin(Plugin):
                 if field_config.get("required", False) and field_name not in fields:
                     return None
 
-        except (ValueError, IndexError, KeyError) as e:
+        except (ValueError, IndexError, KeyError):
             # 提取或转换失败
             return None
 

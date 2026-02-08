@@ -36,7 +36,7 @@ class PerfVisualizerPlugin(Plugin):
             warning("[性能可视化] 没有可视化的数据")
             return {"charts": {}, "timeline_path": None}
 
-        info(f"[性能可视化] 开始生成算子执行时间线")
+        info("[性能可视化] 开始生成算子执行时间线")
 
         charts = {}
 
@@ -59,8 +59,7 @@ class PerfVisualizerPlugin(Plugin):
         try:
             # 检查依赖
             try:
-                import plotly.graph_objects as go
-                from plotly.subplots import make_subplots
+                import plotly.graph_objects  # noqa: F401
             except ImportError:
                 error("[性能可视化] 需要安装 plotly: pip install plotly")
                 return None
@@ -153,9 +152,7 @@ class PerfVisualizerPlugin(Plugin):
                 return fields[name]
         return None
 
-    def _create_timeline_figure(
-        self, timeline_data: List[Dict], context: dict
-    ) -> "go.Figure":
+    def _create_timeline_figure(self, timeline_data: List[Dict], context: dict):
         """创建时间线图表（升腾Studio风格）"""
         import plotly.graph_objects as go
 
@@ -188,7 +185,6 @@ class PerfVisualizerPlugin(Plugin):
         for item in timeline_data:
             unit = item["unit"]
             source = item["source"]
-            y_pos = unit_to_row[unit]
 
             # 悬停信息
             hover_text = (
