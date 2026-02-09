@@ -100,9 +100,7 @@ class ExcelProcessor:
 
         while row <= self.sheet.max_row:
             cell_a = self.sheet.cell(row, 1).value
-            if cell_a and any(
-                keyword in str(cell_a) for keyword in keyword_mapping
-            ):
+            if cell_a and any(keyword in str(cell_a) for keyword in keyword_mapping):
                 start_row, end_row = self._find_subtable_end(row, keyword_mapping)
                 subtable_positions.append((start_row, end_row))
                 row = end_row + 1
@@ -393,8 +391,13 @@ class ExcelProcessor:
             cell_str_lower = cell_str.lower()
 
             # 精确匹配（不区分大小写）
-            if cell_str_lower == field_name_lower or ctx.enable_partial_match and (
-                field_name_lower in cell_str_lower or cell_str_lower in field_name_lower
+            if (
+                cell_str_lower == field_name_lower
+                or ctx.enable_partial_match
+                and (
+                    field_name_lower in cell_str_lower
+                    or cell_str_lower in field_name_lower
+                )
             ):
                 match_rows.append(row)
 
