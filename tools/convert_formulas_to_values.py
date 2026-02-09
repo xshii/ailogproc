@@ -14,6 +14,7 @@
 """
 import sys
 from pathlib import Path
+
 from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 
@@ -70,10 +71,7 @@ def convert_formulas_to_values(excel_file, sheet_name=None):
     print("\n正在计算公式值...")
     wb_values = load_workbook(excel_file, data_only=True)
 
-    if sheet_name:
-        sheet_values = wb_values[sheet_name]
-    else:
-        sheet_values = wb_values.active
+    sheet_values = wb_values[sheet_name] if sheet_name else wb_values.active
 
     # 替换公式为值
     converted = 0

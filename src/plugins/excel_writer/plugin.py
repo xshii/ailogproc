@@ -10,9 +10,7 @@ from openpyxl import load_workbook
 
 from src.plugins.base import Plugin
 from src.plugins.excel_writer.processor import ExcelProcessor
-
-
-from src.utils import info, error, warning
+from src.utils import error, info, warning
 
 
 class ExcelWriterPlugin(Plugin):
@@ -290,9 +288,17 @@ class ExcelWriterPlugin(Plugin):
         merge_rows = self.config.get("special_prefix", {}).get("merge_rows", 2)
 
         keyword_info = self._scan_sub_table_positions(processor, keyword_mapping)
-        self._fill_all_sections(
-            processor, sections, keyword_info, keyword_mapping, top_keyword, merge_rows
+        from src.plugins.excel_writer.data_models import SectionFillContext
+
+        fill_ctx = SectionFillContext(
+            processor=processor,
+            sections=sections,
+            keyword_info=keyword_info,
+            keyword_mapping=keyword_mapping,
+            top_keyword=top_keyword,
+            merge_rows=merge_rows,
         )
+        self._fill_all_sections(fill_ctx)
         self._cleanup_unused_sub_tables(processor, keyword_info)
 
     def _scan_sub_table_positions(self, processor, keyword_mapping):
@@ -305,7 +311,7 @@ class ExcelWriterPlugin(Plugin):
         - ExCfg-ER → ExCfg-ER (普通关键字，不替换)
         """
         keyword_info = {}
-        for excel_keyword in keyword_mapping.keys():
+        for excel_keyword in keyword_mapping:
             # 检查是否包含占位符 __x__
             if "__x__" in excel_keyword:
                 # 扫描所有可能的索引实例（0-9）
@@ -333,35 +339,31 @@ class ExcelWriterPlugin(Plugin):
                     }
         return keyword_info
 
-    def _fill_all_sections(
-        self,
-        processor,
-        sections,
-        keyword_info,
-        keyword_mapping,
-        top_keyword,
-        merge_rows,
-    ):
-        """填充所有配置块到子表（按日志中出现的顺序）"""
-        global_last_row = processor.sheet.max_row
+    def _fill_all_sections(self, ctx):
+        """填充所有配置块到子表（按日志中出现的顺序）
+
+        Args:
+            ctx: SectionFillContext 包含填充所需的所有上下文信息
+        """
+        global_last_row = ctx.processor.sheet.max_row
 
         # 按日志中 sections 的顺序遍历（保持日志原始顺序）
-        for section in sections:
-            if section["name"] == top_keyword:
+        for section in ctx.sections:
+            if section["name"] == ctx.top_keyword:
                 continue
 
             matched_keyword = self._find_matching_keyword(
-                section["name"], keyword_mapping
+                section["name"], ctx.keyword_mapping
             )
-            if not matched_keyword or matched_keyword not in keyword_info:
+            if not matched_keyword or matched_keyword not in ctx.keyword_info:
                 continue
 
             global_last_row = self._fill_section_to_sub_table(
-                processor,
+                ctx.processor,
                 section,
-                keyword_info[matched_keyword],
+                ctx.keyword_info[matched_keyword],
                 global_last_row,
-                merge_rows,
+                ctx.merge_rows,
             )
 
         return global_last_row
@@ -464,7 +466,7 @@ class ExcelWriterPlugin(Plugin):
                 os.path.dirname(__file__), "..", "auto_filename", "config.yaml"
             )
             if os.path.exists(auto_filename_config_path):
-                with open(auto_filename_config_path, "r", encoding="utf-8") as f:
+                with open(auto_filename_config_path, encoding="utf-8") as f:
                     auto_filename_config = yaml.safe_load(f) or {}
             else:
                 auto_filename_config = {}

@@ -7,12 +7,13 @@ import os
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 from openpyxl import Workbook
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import contextlib
 
 from src.plugins.excel_writer.processor import ExcelProcessor
 
@@ -92,7 +93,7 @@ class TestExcelProcessorSubTable(unittest.TestCase):
                 log_section, start_row=2, end_row=3
             )
             self.assertIsNotNone(result)
-        except Exception as e:
+        except Exception:
             # 可能因为配置不完整而失败，但不应该崩溃
             pass
 
@@ -174,7 +175,7 @@ class TestExcelProcessorMatching(unittest.TestCase):
 
         try:
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
-        except Exception as e:
+        except Exception:
             # 部分匹配可能会有警告，但不应崩溃
             pass
 
@@ -199,10 +200,8 @@ class TestExcelProcessorMatching(unittest.TestCase):
 
         processor.config = config
 
-        try:
+        with contextlib.suppress(Exception):
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
-        except Exception as e:
-            pass
 
 
 class TestExcelProcessorSpecialPrefix(unittest.TestCase):
@@ -257,7 +256,7 @@ class TestExcelProcessorSpecialPrefix(unittest.TestCase):
 
         try:
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
-        except Exception as e:
+        except Exception:
             # 特殊前缀处理可能有复杂逻辑
             pass
 
@@ -309,12 +308,10 @@ class TestExcelProcessorWarnings(unittest.TestCase):
 
         processor.config = config
 
-        initial_warnings = len(processor.warnings)
+        len(processor.warnings)
 
-        try:
+        with contextlib.suppress(Exception):
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=1)
-        except Exception:
-            pass
 
         # 验证可能有警告（不存在的字段）
         # warnings 可能增加

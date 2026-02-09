@@ -3,8 +3,8 @@
 data_parser 插件使用示例
 """
 
-import sys
 import os
+import sys
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -113,7 +113,8 @@ def example_2_protocol_parsing():
         print(f"数据包 #{item['index'] + 1}:")
         print(f"  起始符: 0x{item['start']:02X}")
         print(f"  设备地址: {item['addr']}")
-        print(f"  命令: {item.get('cmd_name', f'0x{item['cmd']:02X}')}")
+        cmd_hex = f"0x{item['cmd']:02X}"
+        print(f"  命令: {item.get('cmd_name', cmd_hex)}")
         print(f"  数据: {item['data']}")
         print(f"  校验和: 0x{item['checksum']:02X}")
         print()
@@ -163,7 +164,8 @@ def example_3_network_packet():
         print(f"数据包 #{item['index'] + 1}:")
         print(f"  Magic: 0x{item['magic']:04X}")
         print(f"  Version: {item['version']}")
-        print(f"  Type: {item.get('packet_type_name', f'0x{item['packet_type']:02X}')}")
+        type_hex = f"0x{item['packet_type']:02X}"
+        print(f"  Type: {item.get('packet_type_name', type_hex)}")
         print(f"  Payload Length: {item['payload_len']}")
         print(f"  Payload: {item['payload']}")
         print()
@@ -205,7 +207,8 @@ def example_4_compact_format():
     for item in result["parsed_data"]:
         print(f"记录 #{item['index'] + 1}:")
         print(f"  ID: {item['id']}")
-        print(f"  Status: {item.get('status_name', f'0x{item['status']:02X}')}")
+        status_hex = f"0x{item['status']:02X}"
+        print(f"  Status: {item.get('status_name', status_hex)}")
         print(f"  Value: {item['value']}")
         print()
 

@@ -2,6 +2,7 @@
 Excel处理器 - 负责Excel表格的读取、匹配和填充
 """
 
+import contextlib
 import os
 import sys
 from copy import copy
@@ -10,7 +11,7 @@ from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 
 from src.plugins.base import get_target_column
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class ExcelProcessor:
@@ -99,9 +100,7 @@ class ExcelProcessor:
 
         while row <= self.sheet.max_row:
             cell_a = self.sheet.cell(row, 1).value
-            if cell_a and any(
-                keyword in str(cell_a) for keyword in keyword_mapping.keys()
-            ):
+            if cell_a and any(keyword in str(cell_a) for keyword in keyword_mapping):
                 start_row, end_row = self._find_subtable_end(row, keyword_mapping)
                 subtable_positions.append((start_row, end_row))
                 row = end_row + 1
@@ -120,7 +119,7 @@ class ExcelProcessor:
             cell_check_a = self.sheet.cell(check_row, 1).value
 
             if cell_check_a and any(
-                keyword in str(cell_check_a) for keyword in keyword_mapping.keys()
+                keyword in str(cell_check_a) for keyword in keyword_mapping
             ):
                 break
 
@@ -253,19 +252,29 @@ class ExcelProcessor:
                 continue
 
             row, is_special = match_info
-            self._fill_cell_value(
-                row, target_col, field_value, is_special, special_prefix_merge_rows
+            from src.plugins.excel_writer.data_models import CellFillContext
+
+            fill_ctx = CellFillContext(
+                row=row,
+                col=target_col,
+                value=field_value,
+                is_special=is_special,
+                merge_rows=special_prefix_merge_rows,
             )
+            self._fill_cell_value(fill_ctx)
             matched_count[field_name] = matched_count.get(field_name, 0) + 1
 
-        self._record_top_table_warnings(
-            special_prefix_no_match,
-            unmatched_fields,
-            show_unmatched_warnings,
-            log_section,
-            start_row,
-            end_row,
+        from src.plugins.excel_writer.data_models import TopTableWarningContext
+
+        warning_ctx = TopTableWarningContext(
+            special_prefix_no_match=special_prefix_no_match,
+            unmatched_fields=unmatched_fields,
+            show_warnings=show_unmatched_warnings,
+            log_section=log_section,
+            start_row=start_row,
+            end_row=end_row,
         )
+        self._record_top_table_warnings(warning_ctx)
 
         return matched_count
 
@@ -292,16 +301,19 @@ class ExcelProcessor:
             )
 
             if is_special_prefix:
-                match = self._try_match_b_column(
-                    row,
-                    field_name_lower,
-                    enable_partial_match,
-                    a_col_str,
-                    field_name,
-                    special_prefix_no_match,
+                from src.plugins.excel_writer.data_models import BColumnMatchContext
+
+                ctx = BColumnMatchContext(
+                    row=row,
+                    field_name=field_name,
+                    field_name_lower=field_name_lower,
+                    a_col_str=a_col_str,
+                    enable_partial_match=enable_partial_match,
+                    special_prefix_no_match=special_prefix_no_match,
                 )
-                if match:
-                    return match
+                result = self._try_match_b_column(ctx)
+                if result.matched:
+                    return (result.row, True)
             else:
                 match = self._try_match_a_column(
                     row, a_col_str, field_name_lower, enable_partial_match
@@ -311,32 +323,37 @@ class ExcelProcessor:
 
         return None
 
-    def _try_match_b_column(
-        self,
-        row,
-        field_name_lower,
-        enable_partial_match,
-        a_col_str,
-        field_name,
-        special_prefix_no_match,
-    ):
-        """尝试匹配B列（特殊前缀情况）"""
-        b_col_value = self.get_cell_value_smart(row, 2)
+    def _try_match_b_column(self, ctx):
+        """尝试匹配B列（特殊前缀情况）
+
+        Args:
+            ctx: BColumnMatchContext 包含匹配所需的所有上下文信息
+
+        Returns:
+            MatchResult: 匹配结果
+        """
+        from src.plugins.excel_writer.data_models import MatchResult
+
+        b_col_value = self.get_cell_value_smart(ctx.row, 2)
 
         if b_col_value:
             b_col_str_lower = str(b_col_value).strip().lower()
-            if b_col_str_lower == field_name_lower:
-                return (row, True)
-            if enable_partial_match and (
-                field_name_lower in b_col_str_lower
-                or b_col_str_lower in field_name_lower
+            if b_col_str_lower == ctx.field_name_lower:
+                return MatchResult.success(row=ctx.row, col=2, method="b_column_exact")
+            if ctx.enable_partial_match and (
+                ctx.field_name_lower in b_col_str_lower
+                or b_col_str_lower in ctx.field_name_lower
             ):
-                return (row, True)
+                return MatchResult.success(
+                    row=ctx.row, col=2, method="b_column_partial", confidence=0.8
+                )
         else:
-            if row not in [info[0] for info in special_prefix_no_match]:
-                special_prefix_no_match.append((row, a_col_str, field_name))
+            if ctx.row not in [info[0] for info in ctx.special_prefix_no_match]:
+                ctx.special_prefix_no_match.append(
+                    (ctx.row, ctx.a_col_str, ctx.field_name)
+                )
 
-        return None
+        return MatchResult.failure()
 
     def _try_match_a_column(
         self, row, a_col_str, field_name_lower, enable_partial_match
@@ -353,32 +370,20 @@ class ExcelProcessor:
 
         return None
 
-    def _match_field_in_column(
-        self,
-        field_name: str,
-        start_row: int,
-        end_row: int,
-        column: int,
-        enable_partial_match: bool = True,
-    ) -> list:
-        """
-        通用字段匹配方法 - 在指定列中查找字段名匹配的行.
+    def _match_field_in_column(self, ctx) -> list:
+        """通用字段匹配方法 - 在指定列中查找字段名匹配的行
 
         Args:
-            field_name: 要查找的字段名
-            start_row: 开始行号
-            end_row: 结束行号
-            column: 列号（1-based）
-            enable_partial_match: 是否启用部分匹配
+            ctx: ColumnMatchContext 包含匹配所需的所有上下文信息
 
         Returns:
             list: 匹配的行号列表
         """
         match_rows = []
-        field_name_lower = field_name.lower()
+        field_name_lower = ctx.field_name.lower()
 
-        for row in range(start_row, end_row + 1):
-            cell_value = self.sheet.cell(row, column).value
+        for row in range(ctx.start_row, ctx.end_row + 1):
+            cell_value = self.sheet.cell(row, ctx.column).value
             if not cell_value:
                 continue
 
@@ -386,45 +391,45 @@ class ExcelProcessor:
             cell_str_lower = cell_str.lower()
 
             # 精确匹配（不区分大小写）
-            if cell_str_lower == field_name_lower:
-                match_rows.append(row)
-            # 部分匹配（不区分大小写）
-            elif enable_partial_match and (
-                field_name_lower in cell_str_lower or cell_str_lower in field_name_lower
+            if (
+                cell_str_lower == field_name_lower
+                or ctx.enable_partial_match
+                and (
+                    field_name_lower in cell_str_lower
+                    or cell_str_lower in field_name_lower
+                )
             ):
                 match_rows.append(row)
 
         return match_rows
 
-    def _fill_cell_value(self, row, target_col, field_value, is_special, merge_rows):
-        """填充单元格值"""
-        if is_special and merge_rows > 1:
-            merge_end_row = row + merge_rows - 1
-            try:
+    def _fill_cell_value(self, ctx):
+        """填充单元格值
+
+        Args:
+            ctx: CellFillContext 包含单元格填充所需的所有信息
+        """
+        if ctx.is_special and ctx.merge_rows > 1:
+            merge_end_row = ctx.row + ctx.merge_rows - 1
+            with contextlib.suppress(ValueError):
                 self.sheet.merge_cells(
-                    start_row=row,
-                    start_column=target_col,
+                    start_row=ctx.row,
+                    start_column=ctx.col,
                     end_row=merge_end_row,
-                    end_column=target_col,
+                    end_column=ctx.col,
                 )
-            except ValueError:
-                pass
 
-        self.sheet.cell(row, target_col, value=field_value)
+        self.sheet.cell(ctx.row, ctx.col, value=ctx.value)
 
-    def _record_top_table_warnings(
-        self,
-        special_prefix_no_match,
-        unmatched_fields,
-        show_warnings,
-        log_section,
-        start_row,
-        end_row,
-    ):
-        """记录顶格表格的警告信息"""
-        if special_prefix_no_match:
+    def _record_top_table_warnings(self, ctx):
+        """记录顶格表格的警告信息
+
+        Args:
+            ctx: TopTableWarningContext 包含警告记录所需的所有上下文信息
+        """
+        if ctx.special_prefix_no_match:
             unique_warnings = {}
-            for row, a_col_val, field in special_prefix_no_match:
+            for row, a_col_val, field in ctx.special_prefix_no_match:
                 key = (row, a_col_val)
                 if key not in unique_warnings:
                     unique_warnings[key] = []
@@ -436,13 +441,13 @@ class ExcelProcessor:
                     f"B列为空或不匹配字段 {fields}"
                 )
 
-        if unmatched_fields and show_warnings:
-            section_name = log_section.get("name", "未知配置块")
+        if ctx.unmatched_fields and ctx.show_warnings:
+            section_name = ctx.log_section.get("name", "未知配置块")
             self.warnings.append(
-                f"⚠️  顶格表格未匹配字段 ({section_name}): {unmatched_fields}"
+                f"⚠️  顶格表格未匹配字段 ({section_name}): {ctx.unmatched_fields}"
             )
             self._suggest_field_mapping(
-                unmatched_fields, start_row, end_row, is_sub_table=False
+                ctx.unmatched_fields, ctx.start_row, ctx.end_row, is_sub_table=False
             )
 
     def _suggest_field_mapping(
@@ -502,9 +507,16 @@ class ExcelProcessor:
 
         for field_name, field_value in log_section["fields"].items():
             # 使用通用字段匹配方法在B列查找
-            match_rows = self._match_field_in_column(
-                field_name, start_row, end_row, column=2, enable_partial_match=enable_partial_match
+            from src.plugins.excel_writer.data_models import ColumnMatchContext
+
+            col_match_ctx = ColumnMatchContext(
+                field_name=field_name,
+                start_row=start_row,
+                end_row=end_row,
+                column=2,
+                enable_partial_match=enable_partial_match,
             )
+            match_rows = self._match_field_in_column(col_match_ctx)
 
             # 检查是否匹配
             if not match_rows:

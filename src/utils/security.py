@@ -3,17 +3,13 @@
 """
 
 import os
-from pathlib import Path
-from typing import Optional
 
 
 class SecurityError(Exception):
     """安全相关的异常"""
 
 
-def validate_path(
-    base_dir: str, file_path: str, must_exist: bool = False
-) -> str:
+def validate_path(base_dir: str, file_path: str, must_exist: bool = False) -> str:
     """
     验证文件路径的安全性，防止路径遍历攻击.
 
@@ -70,9 +66,7 @@ def validate_path(
     return real_path
 
 
-def validate_file_extension(
-    file_path: str, allowed_extensions: list[str]
-) -> bool:
+def validate_file_extension(file_path: str, allowed_extensions: list[str]) -> bool:
     """
     验证文件扩展名是否在允许列表中.
 
@@ -125,9 +119,7 @@ def sanitize_filename(filename: str, replacement: str = "_") -> str:
     dangerous_chars = '<>:"|?*\\/\x00'
 
     # 移除危险字符
-    safe_name = "".join(
-        replacement if c in dangerous_chars else c for c in filename
-    )
+    safe_name = "".join(replacement if c in dangerous_chars else c for c in filename)
 
     # 移除开头的点号（隐藏文件）和空格
     safe_name = safe_name.lstrip(". ")

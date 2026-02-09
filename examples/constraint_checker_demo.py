@@ -5,14 +5,15 @@
 演示如何使用 constraint_checker 插件检查配置约束。
 """
 
-import sys
 import os
+import sys
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 from unittest.mock import Mock
+
+from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 
 
 def demo_single_constraint():
@@ -145,7 +146,7 @@ def demo_version_management():
 
     # 列出所有可用版本
     all_versions = sorted(plugin.config.get("constraint_rules", {}).keys())
-    print(f"\n  所有可用版本:")
+    print("\n  所有可用版本:")
     for v in all_versions:
         marker = " (当前使用)" if v == version else ""
         print(f"    - {v}{marker}")

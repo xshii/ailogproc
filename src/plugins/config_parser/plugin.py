@@ -5,9 +5,8 @@
 import os
 import re
 from pathlib import Path
+
 from src.plugins.base import Plugin
-
-
 from src.utils import info
 
 
@@ -135,7 +134,7 @@ class ConfigParser:
         """解析trace文件"""
         current_section = None
 
-        with open(self.trace_file, "r", encoding="utf-8") as f:
+        with open(self.trace_file, encoding="utf-8") as f:
             for line in f:
                 line = line.rstrip("\n")
 

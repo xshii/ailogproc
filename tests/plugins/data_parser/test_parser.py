@@ -2,11 +2,13 @@
 data_parser 插件单元测试
 """
 
-import os
 import json
+import os
 import tempfile
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from src.plugins.data_parser.plugin import DataParserPlugin
 
 
@@ -294,7 +296,7 @@ class TestDataParserPlugin:
             assert os.path.exists(path)
 
             # 验证报告内容
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 report = json.load(f)
                 assert report["total_count"] == 2
                 assert report["parsed_count"] == 2

@@ -3,13 +3,15 @@ commands 模块测试 - 命令注册和执行
 """
 
 import argparse
+
 import pytest
+
 from src.commands import (
-    Command,
-    register_command,
-    get_all_commands,
-    setup_subparsers,
     _COMMANDS,
+    Command,
+    get_all_commands,
+    register_command,
+    setup_subparsers,
 )
 
 

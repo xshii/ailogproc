@@ -34,70 +34,94 @@ class ConstraintCheckerPlugin(Plugin):
                 'version': 使用的规则版本
             }
         """
-        # 获取 config_parser 的输出
-        config_data = context.get("config_parser", {})
-        sections = config_data.get("sections", [])
-        parser = config_data.get("parser")
+        sections, parser = self._extract_config_data(context)
 
         if not sections:
-            info("[约束检查] 无配置数据，跳过检查")
-            result = {"validation_passed": True, "violations": []}
-            # 检查是否为仅检查模式
-            if self.config.get("check_only", False):
-                info("[约束检查] 仅检查模式：跳过后续插件执行")
-                result["stop_pipeline"] = True
-            return result
+            return self._handle_empty_config()
 
         info("[约束检查] 开始检查配置约束...")
 
-        # 获取激活的规则版本
         version, rules = self._get_active_rules()
         info(f"[约束检查] 使用规则版本: {version}")
 
+        violations = self._run_all_checks(sections, rules, parser, context)
+        result = self._build_result(violations, version)
+        result = self._add_report_if_needed(result, context)
+        result = self._apply_check_only_mode(result)
+
+        return result
+
+    def _extract_config_data(self, context: dict) -> tuple:
+        """提取配置数据"""
+        config_data = context.get("config_parser", {})
+        sections = config_data.get("sections", [])
+        parser = config_data.get("parser")
+        return sections, parser
+
+    def _handle_empty_config(self) -> dict:
+        """处理空配置的情况"""
+        info("[约束检查] 无配置数据，跳过检查")
+        result = {"validation_passed": True, "violations": []}
+
+        if self.config.get("check_only", False):
+            info("[约束检查] 仅检查模式：跳过后续插件执行")
+            result["stop_pipeline"] = True
+
+        return result
+
+    def _run_all_checks(
+        self, sections: list, rules: dict, parser, context: dict
+    ) -> list:
+        """运行所有约束检查"""
         violations = []
 
-        # 1. 检查单组约束
+        # 检查单组约束
         single_violations = self._check_single_constraints(
             sections, rules, parser, context
         )
         violations.extend(single_violations)
 
-        # 2. 检查多组约束
+        # 检查多组约束
         multi_violations = self._check_multi_constraints(
             sections, rules, parser, context
         )
         violations.extend(multi_violations)
 
-        # 检查是否为仅检查模式
-        check_only = self.config.get("check_only", False)
+        return violations
 
-        # 输出结果
+    def _build_result(self, violations: list, version: str) -> dict:
+        """构建检查结果"""
         if violations:
             error(f"[约束检查] ✗ 发现 {len(violations)} 个违规")
             for idx, violation in enumerate(violations, 1):
                 error(f"  [{idx}] {violation['message']}")
-            result = {
+
+            return {
                 "validation_passed": False,
                 "violations": violations,
                 "version": version,
             }
         else:
             info("[约束检查] ✓ 所有约束检查通过")
-            result = {
+            return {
                 "validation_passed": True,
                 "violations": [],
                 "version": version,
             }
 
-        # 生成 JSON 报告
+    def _add_report_if_needed(self, result: dict, context: dict) -> dict:
+        """如果需要，添加报告"""
         if self.config.get("generate_report", False):
             report_path = self._generate_report(result, context)
             if report_path:
                 result["report_path"] = report_path
                 debug(f"[约束检查] 报告已生成: {report_path}")
 
-        # 如果是仅检查模式，设置停止标志
-        if check_only:
+        return result
+
+    def _apply_check_only_mode(self, result: dict) -> dict:
+        """应用仅检查模式"""
+        if self.config.get("check_only", False):
             info("[约束检查] 仅检查模式：跳过后续插件执行")
             result["stop_pipeline"] = True
 
@@ -171,7 +195,7 @@ class ConstraintCheckerPlugin(Plugin):
         # 加载规则文件
         rule_file = os.path.join(rules_path, f"v{target_version}.yaml")
         try:
-            with open(rule_file, "r", encoding="utf-8") as f:
+            with open(rule_file, encoding="utf-8") as f:
                 rules = yaml.safe_load(f)
 
             if not rules:

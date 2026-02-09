@@ -4,12 +4,11 @@
 """
 
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 import unittest
 from unittest.mock import Mock, patch
-from pathlib import Path
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -85,7 +84,7 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
             os.path.dirname(result_file), self.temp_dir, "文件应该在临时目录"
         )
 
-        print(f"✓ 测试通过！")
+        print("✓ 测试通过！")
         print(f"  原始文件名: {output_file}")
         print(f"  实际文件名: {result_file}")
         print(f"  文件大小: {os.path.getsize(result_file)} bytes")
@@ -107,7 +106,7 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
 
         # 只 mock requests 如果它存在
         try:
-            import requests
+            import requests  # noqa: F401
 
             with patch("requests.get") as mock_get:
                 # 设置 metadata 响应
@@ -138,7 +137,7 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
                     os.path.exists(result_file), f"文件应该存在: {result_file}"
                 )
 
-                print(f"✓ API Mock 测试通过！")
+                print("✓ API Mock 测试通过！")
                 print(f"  API 被调用次数: {mock_get.call_count}")
                 print(f"  原始文件名: {output_file}")
                 print(f"  实际文件名: {result_file}")
@@ -170,7 +169,7 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
         self.assertGreater(len(sections), 0, "应该解析出至少一个配置块")
         self.assertEqual(len(sections), 5, "应该解析出 5 个配置块")
 
-        print(f"✓ 解析测试通过！")
+        print("✓ 解析测试通过！")
         print(f"  解析出的配置块数量: {len(sections)}")
         print(f"  配置块名称: {[s['name'] for s in sections]}")
 
@@ -208,7 +207,7 @@ thread0	cyc=0x5aa2 |- debugLevel    = 3  (0x03)
         sorted_levels = sorted(levels)
         self.assertEqual(levels, sorted_levels, "插件应该按 level 排序")
 
-        print(f"✓ 插件顺序测试通过！")
+        print("✓ 插件顺序测试通过！")
         print(f"  已加载插件数量: {len(plugins)}")
         for plugin in plugins:
             plugin_key = None

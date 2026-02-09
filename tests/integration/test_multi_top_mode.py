@@ -4,9 +4,9 @@
 """
 
 import os
+import shutil
 import sys
 import tempfile
-import shutil
 import unittest
 
 # 添加项目根目录到 Python 路径
@@ -78,7 +78,7 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
 
         wb = load_workbook(result_file)
         sheet_names = wb.sheetnames
-        print(f"✓ 测试通过！")
+        print("✓ 测试通过！")
         print(f"  输出文件: {result_file}")
         print(f"  工作表数量: {len(sheet_names)}")
         print(f"  工作表名称: {sheet_names}")
@@ -97,12 +97,12 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
         import yaml
 
         # 读取原始配置
-        with open(config_file, "r", encoding="utf-8") as f:
+        with open(config_file, encoding="utf-8") as f:
             original_config = f.read()
 
         try:
             # 修改配置为 single_sheet 模式
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 config = yaml.safe_load(f)
 
             config["top_table"]["multi_top_mode"] = "single_sheet"
@@ -112,6 +112,7 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
 
             # 重新加载插件（清除缓存）
             import importlib
+
             import src.plugins.excel_writer.plugin
 
             importlib.reload(src.plugins.excel_writer.plugin)
@@ -134,7 +135,7 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
 
             wb = load_workbook(result_file)
             sheet_names = wb.sheetnames
-            print(f"✓ 测试通过！")
+            print("✓ 测试通过！")
             print(f"  输出文件: {result_file}")
             print(f"  工作表数量: {len(sheet_names)}")
             print(f"  工作表名称: {sheet_names}")
@@ -164,7 +165,7 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
         multi_top_mode = config.get("top_table", {}).get(
             "multi_top_mode", "multi_sheets"
         )
-        print(f"✓ 当前配置:")
+        print("✓ 当前配置:")
         print(f"  multi_top_mode: {multi_top_mode}")
 
         self.assertIn(

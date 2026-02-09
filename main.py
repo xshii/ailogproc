@@ -3,14 +3,15 @@
 AI日志处理工具 - 主入口
 """
 
+import argparse
 import os
 import sys
-import argparse
+
 import yaml
 
-from src.utils import setup_logger, get_logger, info
 from src.commands import setup_subparsers
 from src.commands.registry import register_all_commands
+from src.utils import get_logger, info, setup_logger
 
 
 def _load_logger_config():

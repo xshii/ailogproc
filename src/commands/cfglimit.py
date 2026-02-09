@@ -3,8 +3,9 @@ cfglimit 命令 - 配置约束检查
 """
 
 import argparse
+
 from src.commands import Command
-from src.utils import info, error, warning
+from src.utils import error, info, warning
 
 
 class CfgLimitCommand(Command):

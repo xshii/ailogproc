@@ -2,13 +2,14 @@
 性能日志解析器插件 - 基于多规则提取的性能日志解析
 """
 
-import os
 import json
+import os
 import re
 from datetime import datetime
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class PerfParserPlugin(Plugin):
@@ -163,7 +164,7 @@ class PerfParserPlugin(Plugin):
         extraction_rules = self.config.get("extraction_rules", [])
 
         try:
-            with open(log_file, "r", encoding="utf-8") as f:
+            with open(log_file, encoding="utf-8") as f:
                 for line_num, line in enumerate(f, 1):
                     line = line.strip()
                     if not line:
@@ -385,10 +386,7 @@ class PerfParserPlugin(Plugin):
         self, fields1: dict, fields2: dict, match_fields: List[str]
     ) -> bool:
         """检查两个字段字典在指定字段上是否匹配"""
-        for field in match_fields:
-            if fields1.get(field) != fields2.get(field):
-                return False
-        return True
+        return all(fields1.get(field) == fields2.get(field) for field in match_fields)
 
     def _calculate_performance(
         self, start_event: Dict, end_event: Dict, rule: dict

@@ -5,9 +5,9 @@ data_parser 插件 - 多二进制导出示例
 演示如何从日志中提取多个16进制数据块并导出为二进制文件
 """
 
-import sys
-import os
 import json
+import os
+import sys
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -69,7 +69,7 @@ def run_example():
     result = plugin.execute(context)
 
     # 显示结果
-    print(f"\n✅ 解析完成！")
+    print("\n✅ 解析完成！")
     print(f"   - 数据块数量: {len(result['data_blocks'])}")
     print(f"   - 二进制文件: {len(result['binary_files'])}")
     print(f"   - Manifest: {result['manifest_path']}")
@@ -99,7 +99,7 @@ def run_example():
         print("\n📋 Manifest 清单:")
         print("-" * 70)
 
-        with open(result['manifest_path'], "r", encoding="utf-8") as f:
+        with open(result['manifest_path'], encoding="utf-8") as f:
             manifest = json.load(f)
 
         print(f"版本: {manifest['version']}")
@@ -143,7 +143,7 @@ def verify_binaries():
     bin_files = [f for f in os.listdir(binary_dir) if f.endswith('.bin')]
 
     if not bin_files:
-        print(f"错误: 未找到.bin文件")
+        print("错误: 未找到.bin文件")
         return
 
     for bin_file in bin_files:

@@ -3,9 +3,10 @@
 """
 
 import os
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class PerfVisualizerPlugin(Plugin):
@@ -59,8 +60,12 @@ class PerfVisualizerPlugin(Plugin):
         try:
             # 检查依赖
             try:
-                from pyecharts import options as opts  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
-                from pyecharts.charts import Bar  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                from pyecharts import (
+                    options as opts,  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                )
+                from pyecharts.charts import (
+                    Bar,  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                )
             except ImportError:
                 error("[性能可视化] 需要安装 pyecharts: pip install pyecharts")
                 return None
@@ -155,7 +160,6 @@ class PerfVisualizerPlugin(Plugin):
 
     def _create_timeline_figure(self, timeline_data: List[Dict], context: dict):
         """创建时间线图表（PyEcharts版本，使用堆叠Bar模拟甘特图）"""
-        from pyecharts.charts import Bar
 
         config = self.config["gantt"]
         units, unit_colors = self._prepare_unit_data(timeline_data)
@@ -169,23 +173,25 @@ class PerfVisualizerPlugin(Plugin):
 
     def _prepare_unit_data(self, timeline_data: List[Dict]) -> tuple:
         """准备执行单元数据和颜色映射"""
-        units = sorted(set(item["unit"] for item in timeline_data))
+        units = sorted({item["unit"] for item in timeline_data})
         colors = self._get_color_scheme(len(units))
         unit_colors = {
             unit: colors[idx % len(colors)] for idx, unit in enumerate(units)
         }
         return units, unit_colors
 
-    def _initialize_chart(self, config: Dict, units: List) -> "Bar":
+    def _initialize_chart(self, config: Dict, units: List):
         """初始化图表对象"""
         from pyecharts import options as opts
         from pyecharts.charts import Bar
 
-        bar = Bar(init_opts=opts.InitOpts(
-            width=f"{config.get('width', 1400)}px",
-            height=f"{config.get('height', 600)}px",
-            theme="light"
-        ))
+        bar = Bar(
+            init_opts=opts.InitOpts(
+                width=f"{config.get('width', 1400)}px",
+                height=f"{config.get('height', 600)}px",
+                theme="light",
+            )
+        )
         bar.add_xaxis(xaxis_data=units)
         return bar
 
@@ -221,8 +227,7 @@ class PerfVisualizerPlugin(Plugin):
         )
 
     def _add_duration_series(
-        self, bar, idx: int, unit_idx: int, item: Dict,
-        color: str, num_units: int, opts
+        self, bar, idx: int, unit_idx: int, item: Dict, color: str, num_units: int, opts
     ) -> None:
         """添加耗时数据系列"""
         duration_data = [None] * num_units
@@ -258,30 +263,27 @@ class PerfVisualizerPlugin(Plugin):
             title_opts=self._build_title_opts(config, opts),
             xaxis_opts=self._build_xaxis_opts(opts),
             yaxis_opts=self._build_yaxis_opts(opts),
-            tooltip_opts=opts.TooltipOpts(
-                trigger="item",
-                axis_pointer_type="shadow"
-            ),
+            tooltip_opts=opts.TooltipOpts(trigger="item", axis_pointer_type="shadow"),
             legend_opts=opts.LegendOpts(is_show=False),
             datazoom_opts=self._build_datazoom_opts(opts),
         )
 
-    def _build_title_opts(self, config: Dict, opts) -> "TitleOpts":
+    def _build_title_opts(self, config: Dict, opts):
         """构建标题选项"""
         return opts.TitleOpts(
             title=config["title"],
             pos_left="center",
-            title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20)
+            title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20),
         )
 
-    def _build_xaxis_opts(self, opts) -> "AxisOpts":
+    def _build_xaxis_opts(self, opts):
         """构建X轴选项"""
         return opts.AxisOpts(
             name="执行单元",
             axislabel_opts=opts.LabelOpts(font_size=12, rotate=0),
         )
 
-    def _build_yaxis_opts(self, opts) -> "AxisOpts":
+    def _build_yaxis_opts(self, opts):
         """构建Y轴选项"""
         return opts.AxisOpts(
             name="Cycle",
@@ -378,15 +380,19 @@ class PerfVisualizerPlugin(Plugin):
 
                 # 统计每个区间的数量
                 for duration in durations:
-                    if bin_start <= duration < bin_end or (i == bins - 1 and duration == bin_end):
+                    if bin_start <= duration < bin_end or (
+                        i == bins - 1 and duration == bin_end
+                    ):
                         bin_counts[i] += 1
 
             # 创建柱状图
-            bar = Bar(init_opts=opts.InitOpts(
-                width=f"{config.get('width', 900)}px",
-                height=f"{config.get('height', 500)}px",
-                theme="light"
-            ))
+            bar = Bar(
+                init_opts=opts.InitOpts(
+                    width=f"{config.get('width', 900)}px",
+                    height=f"{config.get('height', 500)}px",
+                    theme="light",
+                )
+            )
 
             bar.add_xaxis(xaxis_data=bin_ranges)
             bar.add_yaxis(
@@ -400,7 +406,9 @@ class PerfVisualizerPlugin(Plugin):
                 title_opts=opts.TitleOpts(
                     title=config.get("title", "算子耗时分布"),
                     pos_left="center",
-                    title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=18)
+                    title_textstyle_opts=opts.TextStyleOpts(
+                        color="#2c3e50", font_size=18
+                    ),
                 ),
                 xaxis_opts=opts.AxisOpts(
                     name="耗时 (cycles)",
@@ -416,8 +424,7 @@ class PerfVisualizerPlugin(Plugin):
                     splitline_opts=opts.SplitLineOpts(is_show=True),
                 ),
                 tooltip_opts=opts.TooltipOpts(
-                    trigger="axis",
-                    axis_pointer_type="shadow"
+                    trigger="axis", axis_pointer_type="shadow"
                 ),
                 legend_opts=opts.LegendOpts(is_show=False),
             )

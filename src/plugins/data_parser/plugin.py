@@ -2,12 +2,13 @@
 16进制数据解析器插件
 """
 
+import json
 import os
 import re
-import json
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
+
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class DataParserPlugin(Plugin):
@@ -63,7 +64,7 @@ class DataParserPlugin(Plugin):
                 if parsed:
                     parsed_results.append(parsed)
             except Exception as e:
-                error(f"[数据解析] 解析第{idx+1}条数据失败: {e}")
+                error(f"[数据解析] 解析第{idx + 1}条数据失败: {e}")
 
         # 生成报告
         report_path = self._generate_report(parsed_results, hex_data_list)
@@ -89,6 +90,7 @@ class DataParserPlugin(Plugin):
 
         # 生成启动时间戳
         import datetime
+
         timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
         context["_timestamp"] = timestamp  # 保存到上下文
 
@@ -113,7 +115,9 @@ class DataParserPlugin(Plugin):
         # 生成manifest
         manifest_path = None
         if self.config["output"].get("generate_manifest", True):
-            manifest_path = self._generate_manifest(data_blocks, binary_files, timestamp)
+            manifest_path = self._generate_manifest(
+                data_blocks, binary_files, timestamp
+            )
 
         info(f"[数据解析] 处理完成，生成 {len(binary_files)} 个二进制文件")
 
@@ -155,7 +159,7 @@ class DataParserPlugin(Plugin):
         hex_data_list = []
 
         try:
-            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+            with open(log_file, encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     match = re.search(pattern, line)
                     if match:
@@ -175,12 +179,12 @@ class DataParserPlugin(Plugin):
         byte_array = self._hex_to_bytes(hex_str)
 
         if not byte_array:
-            warning(f"[数据解析] 第{index+1}条数据格式错误: {hex_str}")
+            warning(f"[数据解析] 第{index + 1}条数据格式错误: {hex_str}")
             return None
 
         # 验证（可选）
         if not self._validate(byte_array):
-            warning(f"[数据解析] 第{index+1}条数据验证失败")
+            warning(f"[数据解析] 第{index + 1}条数据验证失败")
             return None
 
         # 解析字段
@@ -216,7 +220,9 @@ class DataParserPlugin(Plugin):
             else:
                 # "1A02FF" 格式
                 hex_str = hex_str.replace(" ", "").replace("\n", "")
-                byte_array = [int(hex_str[i : i + 2], 16) for i in range(0, len(hex_str), 2)]
+                byte_array = [
+                    int(hex_str[i : i + 2], 16) for i in range(0, len(hex_str), 2)
+                ]
 
             return byte_array
 
@@ -290,7 +296,9 @@ class DataParserPlugin(Plugin):
 
         return None
 
-    def _calculate_offset(self, offset_def: Any, byte_array: List[int]) -> Optional[int]:
+    def _calculate_offset(
+        self, offset_def: Any, byte_array: List[int]
+    ) -> Optional[int]:
         """计算字段偏移"""
         if isinstance(offset_def, int):
             return offset_def
@@ -378,7 +386,7 @@ class DataParserPlugin(Plugin):
     def _extract_data_blocks(self, log_file: str) -> List[Dict]:
         """从日志中提取多个数据块"""
         try:
-            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+            with open(log_file, encoding="utf-8", errors="ignore") as f:
                 raw_blocks = self._parse_log_lines(f)
 
             processed_blocks = self._finalize_blocks(raw_blocks)
@@ -423,8 +431,12 @@ class DataParserPlugin(Plugin):
         return type_marker in line
 
     def _finalize_and_start_new_block(
-        self, current_block: Optional[Dict], data_blocks: List[Dict],
-        line: str, type_marker: str, line_num: int
+        self,
+        current_block: Optional[Dict],
+        data_blocks: List[Dict],
+        line: str,
+        type_marker: str,
+        line_num: int,
     ) -> Dict:
         """完成当前块并开始新块"""
         # 保存上一个块
@@ -454,9 +466,7 @@ class DataParserPlugin(Plugin):
     def _parse_address_marker(self, block: Dict, line: str, marker: str) -> None:
         """解析地址标记"""
         addr_str = line.split(marker)[-1].strip()
-        if addr_str.startswith(("0x", "0X")):
-            block["address"] = int(addr_str, 16)
-        elif addr_str.replace(" ", ""):
+        if addr_str.startswith(("0x", "0X")) or addr_str.replace(" ", ""):
             block["address"] = int(addr_str, 16)
 
     def _parse_size_marker(self, block: Dict, line: str, marker: str) -> None:
@@ -480,11 +490,15 @@ class DataParserPlugin(Plugin):
 
         return raw_blocks
 
-    def _export_binaries(self, data_blocks: List[Dict], timestamp: str = None) -> List[str]:
+    def _export_binaries(
+        self, data_blocks: List[Dict], timestamp: str = None
+    ) -> List[str]:
         """导出二进制文件"""
         output_config = self.config["output"]
         output_dir = output_config.get("binary_output_dir", "output/binaries")
-        name_template = output_config.get("binary_name_template", "{type}_{address}.bin")
+        name_template = output_config.get(
+            "binary_name_template", "{type}_{address}.bin"
+        )
 
         # 创建输出目录
         os.makedirs(output_dir, exist_ok=True)
@@ -499,14 +513,18 @@ class DataParserPlugin(Plugin):
             # 生成文件名
             file_name = name_template.format(
                 type=block.get("type", "unknown"),
-                address=f"{block.get('address', 0):08X}" if block.get("address") is not None else "noaddr",
+                address=f"{block.get('address', 0):08X}"
+                if block.get("address") is not None
+                else "noaddr",
                 name=block.get("name", "unnamed"),
                 index=idx,
                 timestamp=timestamp or "notimestamp",
             )
 
             # 清理文件名中的非法字符
-            file_name = "".join(c if c.isalnum() or c in "._-" else "_" for c in file_name)
+            file_name = "".join(
+                c if c.isalnum() or c in "._-" else "_" for c in file_name
+            )
 
             file_path = os.path.join(output_dir, file_name)
 
@@ -528,7 +546,9 @@ class DataParserPlugin(Plugin):
         self, data_blocks: List[Dict], binary_files: List[str], timestamp: str = None
     ) -> Optional[str]:
         """生成manifest清单"""
-        manifest_path = self.config["output"].get("manifest_path", "output/manifest.json")
+        manifest_path = self.config["output"].get(
+            "manifest_path", "output/manifest.json"
+        )
 
         try:
             os.makedirs(os.path.dirname(manifest_path), exist_ok=True)
@@ -547,7 +567,9 @@ class DataParserPlugin(Plugin):
                 block_info = {
                     "index": idx,
                     "type": block.get("type"),
-                    "address": f"0x{block.get('address', 0):08X}" if block.get("address") is not None else None,
+                    "address": f"0x{block.get('address', 0):08X}"
+                    if block.get("address") is not None
+                    else None,
                     "size": block.get("byte_count"),
                     "name": block.get("name"),
                     "binary_file": os.path.basename(block.get("binary_file", "")),

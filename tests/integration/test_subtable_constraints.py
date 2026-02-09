@@ -173,7 +173,7 @@ class TestSubtableConstraints(unittest.TestCase):
         result = self.plugin.execute(context)
 
         print(f"验证结果: {result['validation_passed']}")
-        print(f"说明: I2C_0 和 I2C_1 的 speed 字段虽然同名，但有不同的约束")
+        print("说明: I2C_0 和 I2C_1 的 speed 字段虽然同名，但有不同的约束")
 
         self.assertTrue(result["validation_passed"])
         self.assertEqual(len(result["violations"]), 0)
@@ -241,7 +241,7 @@ class TestSubtableConstraints(unittest.TestCase):
 
         # 注意：这个测试可能通过，因为 0 < 2 确实递增
         # 如果要严格递增（差值为1），需要修改约束规则
-        print(f"说明: cfgGroup 从 0 递增到 2，满足递增约束")
+        print("说明: cfgGroup 从 0 递增到 2，满足递增约束")
 
 
 if __name__ == "__main__":
