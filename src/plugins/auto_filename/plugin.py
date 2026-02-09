@@ -5,8 +5,6 @@
 import os
 
 from src.plugins.base import Plugin, get_target_column
-
-
 from src.utils import info, warning
 
 

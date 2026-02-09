@@ -5,14 +5,15 @@
 演示如何使用 constraint_checker 插件检查配置约束。
 """
 
-import sys
 import os
+import sys
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 from unittest.mock import Mock
+
+from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 
 
 def demo_single_constraint():

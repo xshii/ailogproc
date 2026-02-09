@@ -3,9 +3,10 @@
 """
 
 import os
-from typing import List, Dict, Optional
+from typing import Dict, List, Optional
+
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class PerfVisualizerPlugin(Plugin):
@@ -59,8 +60,12 @@ class PerfVisualizerPlugin(Plugin):
         try:
             # 检查依赖
             try:
-                from pyecharts import options as opts  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
-                from pyecharts.charts import Bar  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                from pyecharts import (
+                    options as opts,  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                )
+                from pyecharts.charts import (
+                    Bar,  # noqa: F401  # pylint: disable=unused-import,import-outside-toplevel
+                )
             except ImportError:
                 error("[性能可视化] 需要安装 pyecharts: pip install pyecharts")
                 return None
@@ -168,7 +173,7 @@ class PerfVisualizerPlugin(Plugin):
 
     def _prepare_unit_data(self, timeline_data: List[Dict]) -> tuple:
         """准备执行单元数据和颜色映射"""
-        units = sorted(set(item["unit"] for item in timeline_data))
+        units = sorted({item["unit"] for item in timeline_data})
         colors = self._get_color_scheme(len(units))
         unit_colors = {
             unit: colors[idx % len(colors)] for idx, unit in enumerate(units)

@@ -10,9 +10,7 @@ from openpyxl import load_workbook
 
 from src.plugins.base import Plugin
 from src.plugins.excel_writer.processor import ExcelProcessor
-
-
-from src.utils import info, error, warning
+from src.utils import error, info, warning
 
 
 class ExcelWriterPlugin(Plugin):
@@ -313,7 +311,7 @@ class ExcelWriterPlugin(Plugin):
         - ExCfg-ER → ExCfg-ER (普通关键字，不替换)
         """
         keyword_info = {}
-        for excel_keyword in keyword_mapping.keys():
+        for excel_keyword in keyword_mapping:
             # 检查是否包含占位符 __x__
             if "__x__" in excel_keyword:
                 # 扫描所有可能的索引实例（0-9）
@@ -468,7 +466,7 @@ class ExcelWriterPlugin(Plugin):
                 os.path.dirname(__file__), "..", "auto_filename", "config.yaml"
             )
             if os.path.exists(auto_filename_config_path):
-                with open(auto_filename_config_path, "r", encoding="utf-8") as f:
+                with open(auto_filename_config_path, encoding="utf-8") as f:
                     auto_filename_config = yaml.safe_load(f) or {}
             else:
                 auto_filename_config = {}

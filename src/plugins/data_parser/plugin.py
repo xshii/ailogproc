@@ -2,12 +2,13 @@
 16进制数据解析器插件
 """
 
+import json
 import os
 import re
-import json
-from typing import List, Dict, Optional, Any
+from typing import Any, Dict, List, Optional
+
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class DataParserPlugin(Plugin):
@@ -158,7 +159,7 @@ class DataParserPlugin(Plugin):
         hex_data_list = []
 
         try:
-            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+            with open(log_file, encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     match = re.search(pattern, line)
                     if match:
@@ -385,7 +386,7 @@ class DataParserPlugin(Plugin):
     def _extract_data_blocks(self, log_file: str) -> List[Dict]:
         """从日志中提取多个数据块"""
         try:
-            with open(log_file, "r", encoding="utf-8", errors="ignore") as f:
+            with open(log_file, encoding="utf-8", errors="ignore") as f:
                 raw_blocks = self._parse_log_lines(f)
 
             processed_blocks = self._finalize_blocks(raw_blocks)
@@ -465,9 +466,7 @@ class DataParserPlugin(Plugin):
     def _parse_address_marker(self, block: Dict, line: str, marker: str) -> None:
         """解析地址标记"""
         addr_str = line.split(marker)[-1].strip()
-        if addr_str.startswith(("0x", "0X")):
-            block["address"] = int(addr_str, 16)
-        elif addr_str.replace(" ", ""):
+        if addr_str.startswith(("0x", "0X")) or addr_str.replace(" ", ""):
             block["address"] = int(addr_str, 16)
 
     def _parse_size_marker(self, block: Dict, line: str, marker: str) -> None:

@@ -13,6 +13,8 @@ from openpyxl import Workbook
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import contextlib
+
 from src.plugins.excel_writer.processor import ExcelProcessor
 
 
@@ -198,10 +200,8 @@ class TestExcelProcessorMatching(unittest.TestCase):
 
         processor.config = config
 
-        try:
+        with contextlib.suppress(Exception):
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
-        except Exception:
-            pass
 
 
 class TestExcelProcessorSpecialPrefix(unittest.TestCase):
@@ -310,10 +310,8 @@ class TestExcelProcessorWarnings(unittest.TestCase):
 
         len(processor.warnings)
 
-        try:
+        with contextlib.suppress(Exception):
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=1)
-        except Exception:
-            pass
 
         # 验证可能有警告（不存在的字段）
         # warnings 可能增加

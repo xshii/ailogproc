@@ -2,11 +2,13 @@
 data_parser 插件 - 块模式（多二进制）测试
 """
 
-import os
 import json
+import os
 import tempfile
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from src.plugins.data_parser.plugin import DataParserPlugin
 
 
@@ -146,7 +148,7 @@ class TestDataParserBlockMode:
                 assert os.path.exists(manifest_path)
 
                 # 验证manifest内容
-                with open(manifest_path, "r", encoding="utf-8") as f:
+                with open(manifest_path, encoding="utf-8") as f:
                     manifest = json.load(f)
 
                     assert manifest["total_blocks"] == 3
@@ -183,7 +185,7 @@ class TestDataParserBlockMode:
                     assert result["timestamp"] in os.path.basename(file_path)
 
                 # 验证manifest
-                with open(result["manifest_path"], "r", encoding="utf-8") as f:
+                with open(result["manifest_path"], encoding="utf-8") as f:
                     manifest = json.load(f)
                     assert manifest["total_blocks"] == 3
                     assert manifest["timestamp"] == result["timestamp"]

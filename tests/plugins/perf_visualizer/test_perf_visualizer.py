@@ -5,8 +5,9 @@ perf_visualizer 插件单元测试
 import os
 import sys
 import tempfile
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 
 # Mock pyecharts before importing the plugin
 sys.modules['pyecharts'] = MagicMock()

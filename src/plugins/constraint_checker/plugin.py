@@ -195,7 +195,7 @@ class ConstraintCheckerPlugin(Plugin):
         # 加载规则文件
         rule_file = os.path.join(rules_path, f"v{target_version}.yaml")
         try:
-            with open(rule_file, "r", encoding="utf-8") as f:
+            with open(rule_file, encoding="utf-8") as f:
                 rules = yaml.safe_load(f)
 
             if not rules:

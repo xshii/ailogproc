@@ -18,7 +18,7 @@ except ImportError:
     HAS_REQUESTS = False
 
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class DownloadTemplatePlugin(Plugin):
@@ -120,7 +120,7 @@ class DownloadTemplatePlugin(Plugin):
         manifest_file = storage.get("manifest_file", "templates/manifest.json")
 
         if os.path.exists(manifest_file):
-            with open(manifest_file, "r", encoding="utf-8") as f:
+            with open(manifest_file, encoding="utf-8") as f:
                 return json.load(f)
 
         # 初始 manifest
@@ -231,7 +231,7 @@ class DownloadTemplatePlugin(Plugin):
 
     def _save_template(self, file_content: bytes, version: str, manifest: dict) -> str:
         """保存模板文件并备份旧版本"""
-        from src.utils import sanitize_filename, validate_path, create_safe_directory
+        from src.utils import create_safe_directory, sanitize_filename, validate_path
 
         storage = self.config.get("storage", {})
         templates_dir = storage.get("templates_dir", "templates")

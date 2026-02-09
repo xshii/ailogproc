@@ -6,7 +6,7 @@ import argparse
 import os
 
 from src.commands import Command
-from src.utils import info, error
+from src.utils import error, info
 
 
 class Cfg2ExcelCommand(Command):
@@ -76,7 +76,7 @@ class Cfg2ExcelCommand(Command):
 
     def _validate_inputs(self, args: argparse.Namespace) -> bool:
         """验证输入文件和路径"""
-        from src.utils import validate_file_extension, validate_directory_writable
+        from src.utils import validate_directory_writable, validate_file_extension
 
         has_errors = False
 
@@ -90,10 +90,9 @@ class Cfg2ExcelCommand(Command):
                 has_errors = True
 
         # 验证日志文件（如果指定）
-        if args.log:
-            if not os.path.isfile(args.log):
-                error(f"日志文件不存在: {args.log}")
-                has_errors = True
+        if args.log and not os.path.isfile(args.log):
+            error(f"日志文件不存在: {args.log}")
+            has_errors = True
 
         # 验证输出路径（如果指定）
         if args.output:

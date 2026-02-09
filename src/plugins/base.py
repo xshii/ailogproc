@@ -48,7 +48,7 @@ class Plugin(ABC):
             config_file = os.path.join(plugin_dir, "config.yaml")
 
         if os.path.exists(config_file):
-            with open(config_file, "r", encoding="utf-8") as f:
+            with open(config_file, encoding="utf-8") as f:
                 return yaml.safe_load(f) or {}
 
         # 如果配置文件不存在，返回默认配置

@@ -2,16 +2,16 @@
 插件注册表和调度器
 """
 
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 def _lazy_import_plugins():
     """延迟导入插件，避免在模块导入时就加载所有依赖"""
-    from src.plugins.dld_configtmp import DownloadTemplatePlugin
+    from src.plugins.auto_filename import AutoFilenamePlugin
     from src.plugins.config_parser import ConfigParserPlugin
     from src.plugins.constraint_checker import ConstraintCheckerPlugin
+    from src.plugins.dld_configtmp import DownloadTemplatePlugin
     from src.plugins.excel_writer import ExcelWriterPlugin
-    from src.plugins.auto_filename import AutoFilenamePlugin
 
     return {
         "dld_configtmp": DownloadTemplatePlugin,
@@ -138,7 +138,4 @@ def _get_plugin_key(plugin) -> str:
 
 def _check_dependencies(plugin, context: dict) -> bool:
     """检查插件的依赖是否满足"""
-    for dep in plugin.dependencies:
-        if dep not in context:
-            return False
-    return True
+    return all(dep in context for dep in plugin.dependencies)

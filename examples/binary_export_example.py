@@ -5,9 +5,9 @@ data_parser 插件 - 多二进制导出示例
 演示如何从日志中提取多个16进制数据块并导出为二进制文件
 """
 
-import sys
-import os
 import json
+import os
+import sys
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -99,7 +99,7 @@ def run_example():
         print("\n📋 Manifest 清单:")
         print("-" * 70)
 
-        with open(result['manifest_path'], "r", encoding="utf-8") as f:
+        with open(result['manifest_path'], encoding="utf-8") as f:
             manifest = json.load(f)
 
         print(f"版本: {manifest['version']}")

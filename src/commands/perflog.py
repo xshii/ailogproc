@@ -3,8 +3,9 @@ perflog 命令 - 性能日志分析
 """
 
 import argparse
+
 from src.commands import Command
-from src.utils import info, error
+from src.utils import error, info
 
 
 class PerfLogCommand(Command):
@@ -63,8 +64,8 @@ class PerfLogCommand(Command):
 
         try:
             # 延迟导入
-            from src.plugins.perf_parser.plugin import PerfParserPlugin
             from src.plugins.perf_analyzer.plugin import PerfAnalyzerPlugin
+            from src.plugins.perf_parser.plugin import PerfParserPlugin
             from src.plugins.perf_visualizer.plugin import PerfVisualizerPlugin
 
             # 准备日志文件列表

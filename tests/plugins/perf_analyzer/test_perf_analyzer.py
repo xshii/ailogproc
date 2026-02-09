@@ -2,12 +2,14 @@
 perf_analyzer 插件单元测试
 """
 
-import os
-import json
 import csv
+import json
+import os
 import tempfile
-import pytest
 from unittest.mock import patch
+
+import pytest
+
 from src.plugins.perf_analyzer.plugin import PerfAnalyzerPlugin
 
 
@@ -359,7 +361,7 @@ class TestPerfAnalyzerPlugin:
             assert os.path.exists(json_path)
 
             # 验证文件内容
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 data = json.load(f)
                 assert data["summary"]["count"] == 3
                 assert data["total_pairs"] == 3
@@ -384,7 +386,7 @@ class TestPerfAnalyzerPlugin:
             assert os.path.exists(csv_path)
 
             # 验证CSV内容
-            with open(csv_path, "r", encoding="utf-8") as f:
+            with open(csv_path, encoding="utf-8") as f:
                 reader = csv.reader(f)
                 rows = list(reader)
 

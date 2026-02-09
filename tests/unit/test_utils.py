@@ -3,11 +3,11 @@
 工具函数和日志系统单元测试
 """
 
+import logging
 import os
 import sys
 import tempfile
 import unittest
-import logging
 from pathlib import Path
 
 # 添加项目根目录到 Python 路径
@@ -78,7 +78,7 @@ class TestAppLogger(unittest.TestCase):
         self.assertTrue(os.path.exists(log_file))
 
         # 验证日志内容
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
             self.assertIn("Test log message", content)
 
@@ -147,7 +147,7 @@ class TestAppLogger(unittest.TestCase):
         logger.logger.error("Error message")
 
         # 验证所有级别都被记录
-        with open(log_file, "r", encoding="utf-8") as f:
+        with open(log_file, encoding="utf-8") as f:
             content = f.read()
             self.assertIn("Debug message", content)
             self.assertIn("Info message", content)
@@ -205,7 +205,7 @@ class TestUtilityFunctions(unittest.TestCase):
 
     def test_setup_logger(self):
         """测试 setup_logger 函数"""
-        from src.utils import setup_logger, get_logger
+        from src.utils import get_logger, setup_logger
 
         temp_dir = tempfile.mkdtemp()
         log_file = os.path.join(temp_dir, "setup_test.log")

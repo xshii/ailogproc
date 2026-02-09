@@ -2,12 +2,13 @@
 性能数据分析器插件 - 统计和分析性能数据（基于cycle）
 """
 
-import os
-import json
 import csv
-from typing import List, Dict, Optional
+import json
+import os
+from typing import Dict, List, Optional
+
 from src.plugins.base import Plugin
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class PerfAnalyzerPlugin(Plugin):

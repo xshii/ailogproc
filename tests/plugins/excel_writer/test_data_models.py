@@ -3,20 +3,20 @@
 """
 
 from src.plugins.excel_writer.data_models import (
-    CellPosition,
-    TableRange,
-    MatchContext,
     BColumnMatchContext,
-    TopTableWarningContext,
     CellFillContext,
+    CellPosition,
     ColumnMatchContext,
-    SectionFillContext,
-    MatchResult,
     FillOptions,
-    TopTableWarning,
-    SubTablePosition,
     MatchConfig,
+    MatchContext,
+    MatchResult,
     ProcessingStats,
+    SectionFillContext,
+    SubTablePosition,
+    TableRange,
+    TopTableWarning,
+    TopTableWarningContext,
 )
 
 

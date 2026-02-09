@@ -2,6 +2,7 @@
 Excel处理器 - 负责Excel表格的读取、匹配和填充
 """
 
+import contextlib
 import os
 import sys
 from copy import copy
@@ -10,7 +11,7 @@ from openpyxl import load_workbook
 from openpyxl.cell.cell import MergedCell
 
 from src.plugins.base import get_target_column
-from src.utils import info, warning, error
+from src.utils import error, info, warning
 
 
 class ExcelProcessor:
@@ -100,7 +101,7 @@ class ExcelProcessor:
         while row <= self.sheet.max_row:
             cell_a = self.sheet.cell(row, 1).value
             if cell_a and any(
-                keyword in str(cell_a) for keyword in keyword_mapping.keys()
+                keyword in str(cell_a) for keyword in keyword_mapping
             ):
                 start_row, end_row = self._find_subtable_end(row, keyword_mapping)
                 subtable_positions.append((start_row, end_row))
@@ -120,7 +121,7 @@ class ExcelProcessor:
             cell_check_a = self.sheet.cell(check_row, 1).value
 
             if cell_check_a and any(
-                keyword in str(cell_check_a) for keyword in keyword_mapping.keys()
+                keyword in str(cell_check_a) for keyword in keyword_mapping
             ):
                 break
 
@@ -392,10 +393,7 @@ class ExcelProcessor:
             cell_str_lower = cell_str.lower()
 
             # 精确匹配（不区分大小写）
-            if cell_str_lower == field_name_lower:
-                match_rows.append(row)
-            # 部分匹配（不区分大小写）
-            elif ctx.enable_partial_match and (
+            if cell_str_lower == field_name_lower or ctx.enable_partial_match and (
                 field_name_lower in cell_str_lower or cell_str_lower in field_name_lower
             ):
                 match_rows.append(row)
@@ -410,15 +408,13 @@ class ExcelProcessor:
         """
         if ctx.is_special and ctx.merge_rows > 1:
             merge_end_row = ctx.row + ctx.merge_rows - 1
-            try:
+            with contextlib.suppress(ValueError):
                 self.sheet.merge_cells(
                     start_row=ctx.row,
                     start_column=ctx.col,
                     end_row=merge_end_row,
                     end_column=ctx.col,
                 )
-            except ValueError:
-                pass
 
         self.sheet.cell(ctx.row, ctx.col, value=ctx.value)
 

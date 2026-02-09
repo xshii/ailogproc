@@ -12,8 +12,8 @@ sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 )
 
-from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 from src.plugins import run_plugins
+from src.plugins.constraint_checker.plugin import ConstraintCheckerPlugin
 
 
 class TestCheckOnlyMode(unittest.TestCase):

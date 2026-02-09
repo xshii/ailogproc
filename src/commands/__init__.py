@@ -2,8 +2,8 @@
 命令模块 - 子命令注册和管理
 """
 
-from abc import ABC, abstractmethod
 import argparse
+from abc import ABC, abstractmethod
 
 
 class Command(ABC):
