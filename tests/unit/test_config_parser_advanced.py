@@ -303,7 +303,7 @@ thread0	cyc=0x1000 |- field_name  = 测试值
         }
 
         # 应该在目录中查找
-        found_file = plugin._get_default_trace_file()
+        plugin._get_default_trace_file()
 
         # 可能找到或找不到，但不应崩溃
         # self.assertIsNone(found_file)  # 空目录应该返回 None

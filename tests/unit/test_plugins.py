@@ -7,8 +7,7 @@ import os
 import sys
 import tempfile
 import unittest
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -190,7 +189,6 @@ class TestPluginDependencies(unittest.TestCase):
 
     def test_all_plugins_are_plugin_instances(self):
         """测试所有插件都是 Plugin 的子类"""
-        from src.plugins.base import Plugin
         from src.plugins.config_parser.plugin import ConfigParserPlugin
         from src.plugins.dld_configtmp.plugin import DownloadTemplatePlugin
         from src.plugins.excel_writer.plugin import ExcelWriterPlugin

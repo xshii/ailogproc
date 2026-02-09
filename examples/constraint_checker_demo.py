@@ -145,7 +145,7 @@ def demo_version_management():
 
     # 列出所有可用版本
     all_versions = sorted(plugin.config.get("constraint_rules", {}).keys())
-    print(f"\n  所有可用版本:")
+    print("\n  所有可用版本:")
     for v in all_versions:
         marker = " (当前使用)" if v == version else ""
         print(f"    - {v}{marker}")

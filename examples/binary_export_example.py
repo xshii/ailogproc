@@ -69,7 +69,7 @@ def run_example():
     result = plugin.execute(context)
 
     # 显示结果
-    print(f"\n✅ 解析完成！")
+    print("\n✅ 解析完成！")
     print(f"   - 数据块数量: {len(result['data_blocks'])}")
     print(f"   - 二进制文件: {len(result['binary_files'])}")
     print(f"   - Manifest: {result['manifest_path']}")
@@ -143,7 +143,7 @@ def verify_binaries():
     bin_files = [f for f in os.listdir(binary_dir) if f.endswith('.bin')]
 
     if not bin_files:
-        print(f"错误: 未找到.bin文件")
+        print("错误: 未找到.bin文件")
         return
 
     for bin_file in bin_files:

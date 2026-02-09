@@ -7,7 +7,7 @@ import json
 import csv
 import tempfile
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from src.plugins.perf_analyzer.plugin import PerfAnalyzerPlugin
 
 

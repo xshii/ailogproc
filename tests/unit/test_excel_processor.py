@@ -7,7 +7,6 @@ import os
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 from openpyxl import Workbook
 from openpyxl.styles import Font, Border, Side
@@ -157,7 +156,7 @@ class TestExcelProcessor(unittest.TestCase):
         processor.sheet["A8"] = "cfgGroup"
         processor.sheet["A9"] = "powerLevel"
 
-        result = processor.find_sub_table("ERCfg")
+        processor.find_sub_table("ERCfg")
         # 如果没有配置，可能找不到
         # self.assertIsNotNone(result)
 
@@ -201,7 +200,6 @@ class TestExcelProcessorEdgeCases(unittest.TestCase):
         self.test_excel = os.path.join(self.temp_dir, "edge_test.xlsx")
 
         wb = Workbook()
-        ws = wb.active
 
         # 创建空的工作表
         wb.save(self.test_excel)
@@ -221,7 +219,7 @@ class TestExcelProcessorEdgeCases(unittest.TestCase):
     def test_find_top_table_empty_sheet(self):
         """测试在空工作表中查找顶格表"""
         processor = ExcelProcessor(self.test_excel)
-        result = processor.find_top_table()
+        processor.find_top_table()
         # 空工作表应该返回 None 或空结果
         # self.assertIsNone(result)
 

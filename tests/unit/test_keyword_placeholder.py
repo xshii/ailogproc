@@ -101,7 +101,7 @@ class TestKeywordPlaceholder(unittest.TestCase):
             mock_processor, keyword_mapping
         )
 
-        print(f"\n扫描结果：")
+        print("\n扫描结果：")
         for keyword, info in sorted(keyword_info.items()):
             print(
                 f"  {keyword}: 行 {info['orig_start']}-{info['orig_end']}, "

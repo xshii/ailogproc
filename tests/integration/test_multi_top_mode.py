@@ -78,7 +78,7 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
 
         wb = load_workbook(result_file)
         sheet_names = wb.sheetnames
-        print(f"✓ 测试通过！")
+        print("✓ 测试通过！")
         print(f"  输出文件: {result_file}")
         print(f"  工作表数量: {len(sheet_names)}")
         print(f"  工作表名称: {sheet_names}")
@@ -134,7 +134,7 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
 
             wb = load_workbook(result_file)
             sheet_names = wb.sheetnames
-            print(f"✓ 测试通过！")
+            print("✓ 测试通过！")
             print(f"  输出文件: {result_file}")
             print(f"  工作表数量: {len(sheet_names)}")
             print(f"  工作表名称: {sheet_names}")
@@ -164,7 +164,7 @@ thread0	cyc=0x6000 |- txPower     = 30  (0x1E)
         multi_top_mode = config.get("top_table", {}).get(
             "multi_top_mode", "multi_sheets"
         )
-        print(f"✓ 当前配置:")
+        print("✓ 当前配置:")
         print(f"  multi_top_mode: {multi_top_mode}")
 
         self.assertIn(

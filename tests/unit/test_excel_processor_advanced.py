@@ -7,7 +7,6 @@ import os
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 from openpyxl import Workbook
 
@@ -92,7 +91,7 @@ class TestExcelProcessorSubTable(unittest.TestCase):
                 log_section, start_row=2, end_row=3
             )
             self.assertIsNotNone(result)
-        except Exception as e:
+        except Exception:
             # 可能因为配置不完整而失败，但不应该崩溃
             pass
 
@@ -174,7 +173,7 @@ class TestExcelProcessorMatching(unittest.TestCase):
 
         try:
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
-        except Exception as e:
+        except Exception:
             # 部分匹配可能会有警告，但不应崩溃
             pass
 
@@ -201,7 +200,7 @@ class TestExcelProcessorMatching(unittest.TestCase):
 
         try:
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
-        except Exception as e:
+        except Exception:
             pass
 
 
@@ -257,7 +256,7 @@ class TestExcelProcessorSpecialPrefix(unittest.TestCase):
 
         try:
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=3)
-        except Exception as e:
+        except Exception:
             # 特殊前缀处理可能有复杂逻辑
             pass
 
@@ -309,7 +308,7 @@ class TestExcelProcessorWarnings(unittest.TestCase):
 
         processor.config = config
 
-        initial_warnings = len(processor.warnings)
+        len(processor.warnings)
 
         try:
             processor.match_and_fill_top_table(log_section, start_row=1, end_row=1)

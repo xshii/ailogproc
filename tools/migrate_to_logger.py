@@ -5,7 +5,6 @@
 
 import os
 import re
-from pathlib import Path
 
 
 def find_print_statements(directory="src/plugins"):

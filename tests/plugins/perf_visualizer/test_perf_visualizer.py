@@ -6,14 +6,14 @@ import os
 import sys
 import tempfile
 import pytest
-from unittest.mock import patch, MagicMock, mock_open
+from unittest.mock import patch, MagicMock
 
 # Mock pyecharts before importing the plugin
 sys.modules['pyecharts'] = MagicMock()
 sys.modules['pyecharts.options'] = MagicMock()
 sys.modules['pyecharts.charts'] = MagicMock()
 
-from src.plugins.perf_visualizer.plugin import PerfVisualizerPlugin
+from src.plugins.perf_visualizer.plugin import PerfVisualizerPlugin  # noqa: E402
 
 
 @pytest.fixture

@@ -155,7 +155,6 @@ class PerfVisualizerPlugin(Plugin):
 
     def _create_timeline_figure(self, timeline_data: List[Dict], context: dict):
         """创建时间线图表（PyEcharts版本，使用堆叠Bar模拟甘特图）"""
-        from pyecharts.charts import Bar
 
         config = self.config["gantt"]
         units, unit_colors = self._prepare_unit_data(timeline_data)
@@ -176,7 +175,7 @@ class PerfVisualizerPlugin(Plugin):
         }
         return units, unit_colors
 
-    def _initialize_chart(self, config: Dict, units: List) -> "Bar":
+    def _initialize_chart(self, config: Dict, units: List):
         """初始化图表对象"""
         from pyecharts import options as opts
         from pyecharts.charts import Bar
@@ -266,7 +265,7 @@ class PerfVisualizerPlugin(Plugin):
             datazoom_opts=self._build_datazoom_opts(opts),
         )
 
-    def _build_title_opts(self, config: Dict, opts) -> "TitleOpts":
+    def _build_title_opts(self, config: Dict, opts):
         """构建标题选项"""
         return opts.TitleOpts(
             title=config["title"],
@@ -274,14 +273,14 @@ class PerfVisualizerPlugin(Plugin):
             title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20)
         )
 
-    def _build_xaxis_opts(self, opts) -> "AxisOpts":
+    def _build_xaxis_opts(self, opts):
         """构建X轴选项"""
         return opts.AxisOpts(
             name="执行单元",
             axislabel_opts=opts.LabelOpts(font_size=12, rotate=0),
         )
 
-    def _build_yaxis_opts(self, opts) -> "AxisOpts":
+    def _build_yaxis_opts(self, opts):
         """构建Y轴选项"""
         return opts.AxisOpts(
             name="Cycle",

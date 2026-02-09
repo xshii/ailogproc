@@ -6,7 +6,7 @@
 import os
 import sys
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 sys.path.insert(
     0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -107,7 +107,7 @@ class TestCheckOnlyMode(unittest.TestCase):
         context = {}
 
         # 执行插件
-        result_context = run_plugins(plugins, plugin_configs, context)
+        run_plugins(plugins, plugin_configs, context)
 
         # 验证：plugin1 和 plugin2 执行了，plugin3 没有执行
         self.assertEqual(mock_plugin1.execute.call_count, 1)
@@ -152,7 +152,7 @@ class TestCheckOnlyMode(unittest.TestCase):
         context = {}
 
         # 执行插件
-        result_context = run_plugins(plugins, plugin_configs, context)
+        run_plugins(plugins, plugin_configs, context)
 
         # 验证：所有插件都执行了
         self.assertEqual(mock_plugin1.execute.call_count, 1)

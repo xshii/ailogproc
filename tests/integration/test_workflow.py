@@ -5,8 +5,7 @@ Workflow 集成测试 - 测试完整的插件执行流程
 import os
 import tempfile
 import shutil
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -170,7 +169,7 @@ thread0	cyc=0x1000 |- debugLevel    = 2  (0x02)
         assert os.path.exists(result_file)
 
         # TODO: 可以进一步验证 Excel 内容是否正确
-        print(f"\n✓ Trace 解析测试通过！")
+        print("\n✓ Trace 解析测试通过！")
 
 
 class TestDldTmpPluginMocking:
@@ -239,7 +238,7 @@ class TestDldTmpPluginMocking:
                 assert "version" in result
                 assert result["version"] == "v2.0.0"
 
-                print(f"\n✓ API Mock 测试通过！")
+                print("\n✓ API Mock 测试通过！")
                 print(f"  模板路径: {result['template_path']}")
                 print(f"  版本: {result['version']}")
                 print(f"  是否下载: {result['downloaded']}")

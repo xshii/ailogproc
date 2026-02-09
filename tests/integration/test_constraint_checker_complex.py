@@ -166,11 +166,11 @@ class TestConstraintCheckerComplex(unittest.TestCase):
         print("\n" + "=" * 70)
         print("违规总结:")
         print("=" * 70)
-        print(f"✗ 组1（索引0）: 无违规 ✓")
-        print(f"✗ 组2（索引1）: 单组违规 - debugLevel=5 超出允许范围")
-        print(f"✗ 组3（索引2）: 多组违规 - systemMode不一致 + configId不递增")
-        print(f"✗ 组4（索引3）: 单组违规 + 多组违规 - dangerousFlag禁止 + 不一致性")
-        print(f"✗ 组5（索引4）: 单组违规 - productionMode在调试模式下禁止")
+        print("✗ 组1（索引0）: 无违规 ✓")
+        print("✗ 组2（索引1）: 单组违规 - debugLevel=5 超出允许范围")
+        print("✗ 组3（索引2）: 多组违规 - systemMode不一致 + configId不递增")
+        print("✗ 组4（索引3）: 单组违规 + 多组违规 - dangerousFlag禁止 + 不一致性")
+        print("✗ 组5（索引4）: 单组违规 - productionMode在调试模式下禁止")
         print("=" * 70)
 
     def test_violation_details(self):
@@ -260,7 +260,7 @@ class TestConstraintCheckerComplex(unittest.TestCase):
             v_type = v["type"]
             violation_types[v_type] = violation_types.get(v_type, 0) + 1
 
-        print(f"\n违规类型统计:")
+        print("\n违规类型统计:")
         for v_type, count in sorted(violation_types.items()):
             print(f"  {v_type}: {count} 个")
 
