@@ -180,11 +180,13 @@ class PerfVisualizerPlugin(Plugin):
         from pyecharts import options as opts
         from pyecharts.charts import Bar
 
-        bar = Bar(init_opts=opts.InitOpts(
-            width=f"{config.get('width', 1400)}px",
-            height=f"{config.get('height', 600)}px",
-            theme="light"
-        ))
+        bar = Bar(
+            init_opts=opts.InitOpts(
+                width=f"{config.get('width', 1400)}px",
+                height=f"{config.get('height', 600)}px",
+                theme="light",
+            )
+        )
         bar.add_xaxis(xaxis_data=units)
         return bar
 
@@ -220,8 +222,7 @@ class PerfVisualizerPlugin(Plugin):
         )
 
     def _add_duration_series(
-        self, bar, idx: int, unit_idx: int, item: Dict,
-        color: str, num_units: int, opts
+        self, bar, idx: int, unit_idx: int, item: Dict, color: str, num_units: int, opts
     ) -> None:
         """添加耗时数据系列"""
         duration_data = [None] * num_units
@@ -257,10 +258,7 @@ class PerfVisualizerPlugin(Plugin):
             title_opts=self._build_title_opts(config, opts),
             xaxis_opts=self._build_xaxis_opts(opts),
             yaxis_opts=self._build_yaxis_opts(opts),
-            tooltip_opts=opts.TooltipOpts(
-                trigger="item",
-                axis_pointer_type="shadow"
-            ),
+            tooltip_opts=opts.TooltipOpts(trigger="item", axis_pointer_type="shadow"),
             legend_opts=opts.LegendOpts(is_show=False),
             datazoom_opts=self._build_datazoom_opts(opts),
         )
@@ -270,7 +268,7 @@ class PerfVisualizerPlugin(Plugin):
         return opts.TitleOpts(
             title=config["title"],
             pos_left="center",
-            title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20)
+            title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=20),
         )
 
     def _build_xaxis_opts(self, opts):
@@ -377,15 +375,19 @@ class PerfVisualizerPlugin(Plugin):
 
                 # 统计每个区间的数量
                 for duration in durations:
-                    if bin_start <= duration < bin_end or (i == bins - 1 and duration == bin_end):
+                    if bin_start <= duration < bin_end or (
+                        i == bins - 1 and duration == bin_end
+                    ):
                         bin_counts[i] += 1
 
             # 创建柱状图
-            bar = Bar(init_opts=opts.InitOpts(
-                width=f"{config.get('width', 900)}px",
-                height=f"{config.get('height', 500)}px",
-                theme="light"
-            ))
+            bar = Bar(
+                init_opts=opts.InitOpts(
+                    width=f"{config.get('width', 900)}px",
+                    height=f"{config.get('height', 500)}px",
+                    theme="light",
+                )
+            )
 
             bar.add_xaxis(xaxis_data=bin_ranges)
             bar.add_yaxis(
@@ -399,7 +401,9 @@ class PerfVisualizerPlugin(Plugin):
                 title_opts=opts.TitleOpts(
                     title=config.get("title", "算子耗时分布"),
                     pos_left="center",
-                    title_textstyle_opts=opts.TextStyleOpts(color="#2c3e50", font_size=18)
+                    title_textstyle_opts=opts.TextStyleOpts(
+                        color="#2c3e50", font_size=18
+                    ),
                 ),
                 xaxis_opts=opts.AxisOpts(
                     name="耗时 (cycles)",
@@ -415,8 +419,7 @@ class PerfVisualizerPlugin(Plugin):
                     splitline_opts=opts.SplitLineOpts(is_show=True),
                 ),
                 tooltip_opts=opts.TooltipOpts(
-                    trigger="axis",
-                    axis_pointer_type="shadow"
+                    trigger="axis", axis_pointer_type="shadow"
                 ),
                 legend_opts=opts.LegendOpts(is_show=False),
             )

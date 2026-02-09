@@ -9,6 +9,7 @@ from typing import Optional, List, Dict, Any
 @dataclass
 class CellPosition:
     """单元格位置"""
+
     row: int
     col: int
 
@@ -19,6 +20,7 @@ class CellPosition:
 @dataclass
 class TableRange:
     """表格范围"""
+
     start_row: int
     end_row: int
     start_col: Optional[int] = None
@@ -37,6 +39,7 @@ class TableRange:
 @dataclass
 class MatchContext:
     """匹配上下文 - 用于减少函数参数"""
+
     worksheet: Any  # openpyxl Worksheet
     position: CellPosition
     field_name: str
@@ -56,6 +59,7 @@ class MatchContext:
 @dataclass
 class BColumnMatchContext:
     """B列匹配上下文 - 用于 _try_match_b_column 函数"""
+
     row: int
     field_name: str
     field_name_lower: str
@@ -67,6 +71,7 @@ class BColumnMatchContext:
 @dataclass
 class TopTableWarningContext:
     """顶表警告上下文 - 用于 _record_top_table_warnings 函数"""
+
     special_prefix_no_match: List
     unmatched_fields: List
     show_warnings: bool
@@ -78,6 +83,7 @@ class TopTableWarningContext:
 @dataclass
 class CellFillContext:
     """单元格填充上下文 - 用于 _fill_cell_value 函数"""
+
     row: int
     col: int
     value: Any
@@ -88,6 +94,7 @@ class CellFillContext:
 @dataclass
 class ColumnMatchContext:
     """列匹配上下文 - 用于 _match_field_in_column 函数"""
+
     field_name: str
     start_row: int
     end_row: int
@@ -98,6 +105,7 @@ class ColumnMatchContext:
 @dataclass
 class SectionFillContext:
     """配置块填充上下文 - 用于 _fill_all_sections 函数"""
+
     processor: Any  # ExcelProcessor instance
     sections: List[Dict]
     keyword_info: Dict
@@ -109,6 +117,7 @@ class SectionFillContext:
 @dataclass
 class MatchResult:
     """匹配结果"""
+
     matched: bool
     row: Optional[int] = None
     col: Optional[int] = None
@@ -116,18 +125,16 @@ class MatchResult:
     confidence: float = 0.0
 
     @staticmethod
-    def success(row: int, col: int, method: str, confidence: float = 1.0) -> 'MatchResult':
+    def success(
+        row: int, col: int, method: str, confidence: float = 1.0
+    ) -> "MatchResult":
         """创建成功结果"""
         return MatchResult(
-            matched=True,
-            row=row,
-            col=col,
-            method=method,
-            confidence=confidence
+            matched=True, row=row, col=col, method=method, confidence=confidence
         )
 
     @staticmethod
-    def failure() -> 'MatchResult':
+    def failure() -> "MatchResult":
         """创建失败结果"""
         return MatchResult(matched=False)
 
@@ -135,6 +142,7 @@ class MatchResult:
 @dataclass
 class FillOptions:
     """填充选项"""
+
     is_special: bool = False
     merge_rows: int = 1
     target_col: Optional[int] = None
@@ -144,6 +152,7 @@ class FillOptions:
 @dataclass
 class TopTableWarning:
     """顶表告警"""
+
     row: int
     field_name: str
     message: str
@@ -156,6 +165,7 @@ class TopTableWarning:
 @dataclass
 class SubTablePosition:
     """子表位置信息"""
+
     keyword: str
     start_row: int
     end_row: int
@@ -171,6 +181,7 @@ class SubTablePosition:
 @dataclass
 class MatchConfig:
     """匹配配置"""
+
     enable_top_table: bool = True
     enable_b_column: bool = True
     enable_a_column: bool = True
@@ -179,21 +190,22 @@ class MatchConfig:
     case_sensitive: bool = False
 
     @classmethod
-    def from_dict(cls, config: Dict) -> 'MatchConfig':
+    def from_dict(cls, config: Dict) -> "MatchConfig":
         """从配置字典创建"""
         return cls(
-            enable_top_table=config.get('enable_top_table', True),
-            enable_b_column=config.get('enable_b_column', True),
-            enable_a_column=config.get('enable_a_column', True),
-            special_prefix=config.get('special_prefix'),
-            fuzzy_match=config.get('fuzzy_match', False),
-            case_sensitive=config.get('case_sensitive', False),
+            enable_top_table=config.get("enable_top_table", True),
+            enable_b_column=config.get("enable_b_column", True),
+            enable_a_column=config.get("enable_a_column", True),
+            special_prefix=config.get("special_prefix"),
+            fuzzy_match=config.get("fuzzy_match", False),
+            case_sensitive=config.get("case_sensitive", False),
         )
 
 
 @dataclass
 class ProcessingStats:
     """处理统计"""
+
     total_fields: int = 0
     matched_fields: int = 0
     failed_fields: int = 0

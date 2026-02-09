@@ -345,10 +345,14 @@ class ExcelProcessor:
                 ctx.field_name_lower in b_col_str_lower
                 or b_col_str_lower in ctx.field_name_lower
             ):
-                return MatchResult.success(row=ctx.row, col=2, method="b_column_partial", confidence=0.8)
+                return MatchResult.success(
+                    row=ctx.row, col=2, method="b_column_partial", confidence=0.8
+                )
         else:
             if ctx.row not in [info[0] for info in ctx.special_prefix_no_match]:
-                ctx.special_prefix_no_match.append((ctx.row, ctx.a_col_str, ctx.field_name))
+                ctx.special_prefix_no_match.append(
+                    (ctx.row, ctx.a_col_str, ctx.field_name)
+                )
 
         return MatchResult.failure()
 
