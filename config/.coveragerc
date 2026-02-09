@@ -2,6 +2,9 @@
 # https://coverage.readthedocs.io/
 
 [run]
+# 使用相对路径（修复 CI 中的绝对路径问题）
+relative_files = True
+
 # 指定要测量的源代码目录
 source = src
 
