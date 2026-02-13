@@ -15,7 +15,10 @@ changelog:
 
 single_constraints:
   # top 表字段约束（使用前缀）
-  - name: "opSch系统模式1的配置约束"
+  - name: "系统模式1下的参数限制"
+    description: >
+      当系统处于模式1时，限制调试级别和功率模式的取值范围，
+      并禁止开启危险标志位，防止在该模式下出现不安全的配置组合
     when:
       opSch.systemMode: "1"
     only_allow:
@@ -24,7 +27,10 @@ single_constraints:
     forbid:
       opSch.dangerousFlag: ["1", "true"]
 
-  - name: "opSch调试模式约束"
+  - name: "高级调试模式的生产配置禁止"
+    description: >
+      当调试级别为最高级(3)且系统处于模式2时，
+      禁止启用生产模式，避免调试配置与生产配置混用导致异常
     when:
       opSch.debugLevel: "3"
       opSch.systemMode: "2"
@@ -32,8 +38,10 @@ single_constraints:
       opSch.productionMode: ["1", "enabled"]
 
   # 功率等级组合约束（top 表）
-  - name: "opSch功率等级组合约束"
-    description: "功率、电压、频率必须配套使用"
+  - name: "功率-电压-频率配套约束"
+    description: >
+      功率等级、电压等级、频率模式三者必须配套使用，
+      防止出现功率与电压/频率不匹配的配置，避免硬件损坏或性能异常
     when:
       opSch.systemMode: "1"
 
@@ -53,23 +61,30 @@ single_constraints:
         opSch.voltageLevel: "3"
         opSch.frequencyMode: "high"
 
-  # 子表字段约束（新功能）
-  - name: "ERCfg配置组约束"
-    description: "ERCfg 子表的配置组字段约束"
+  # 子表字段约束
+  - name: "ERCfg 配置组取值范围"
+    description: >
+      限制 ERCfg 子表的配置组编号在有效范围内（0~4），
+      超出范围的配置组编号会导致硬件查表越界
     only_allow:
       ERCfg.cfgGroup: ["0", "1", "2", "3", "4"]
 
-  # 多个子表的同名字段约束（新功能）
-  - name: "I2C总线速度约束"
-    description: "不同 I2C 总线可以有不同的速度限制"
+  # 多个子表的同名字段约束
+  - name: "I2C 各总线速度限制"
+    description: >
+      不同 I2C 总线因硬件能力差异，支持的速度模式不同：
+      I2C.0 支持标准和快速模式，I2C.1 额外支持高速模式，
+      I2C.2 仅支持标准模式。超出支持范围会导致通信失败
     only_allow:
       I2C.0.speed: ["100K", "400K"]      # I2C.0 支持标准和快速模式
       I2C.1.speed: ["100K", "400K", "1M"] # I2C.1 支持高速模式
       I2C.2.speed: ["100K"]               # I2C.2 只支持标准模式
 
-  # 跨 top 和 sub 的组合约束（新功能）
-  - name: "功率模式与ERCfg关联"
-    description: "不同功率模式下 ERCfg 的配置组有限制"
+  # 跨 top 和 sub 的组合约束
+  - name: "高功率模式下 ERCfg 配置组限制"
+    description: >
+      高功率模式下只允许使用 ERCfg 配置组 0 和 1，
+      因为配置组 2~4 的参数在高功率场景下可能引发过热保护
     when:
       opSch.powerMode: "high"
     only_allow:
@@ -79,20 +94,29 @@ single_constraints:
 
 multi_constraints:
   # top 表字段的多组约束（使用前缀）
-  - name: "连续两组opSch.systemMode一致性"
+  - name: "相邻配置组系统模式一致性"
+    description: >
+      连续两个配置组的系统模式必须相同，
+      防止在连续操作中出现模式突变导致系统状态不连续
     group_count: 2
     rules:
       - type: "same_value"
         field: "opSch.systemMode"
 
-  - name: "三组配置ID递增检查"
+  - name: "连续三组配置ID严格递增"
+    description: >
+      连续三个配置组的 configId 必须严格递增，
+      确保配置的执行顺序正确，避免重复或乱序执行
     group_count: 3
     rules:
       - type: "sequence"
         field: "opSch.configId"
         order: "increasing"
 
-  - name: "级联功率控制"
+  - name: "功率模式级联降档保护"
+    description: >
+      高功率模式不允许直接切换到低功率模式，必须经过中功率过渡，
+      防止功率骤降导致电压跌落或系统不稳定
     group_count: 3
     rules:
       - type: "conditional"
@@ -111,18 +135,22 @@ multi_constraints:
         then_field: "opSch.powerMode"
         forbid: ["low"]
 
-  # 子表字段的多组约束（新功能）
-  - name: "ERCfg配置组递增"
-    description: "连续两组的 ERCfg.cfgGroup 必须递增"
+  # 子表字段的多组约束
+  - name: "ERCfg 配置组递增序列"
+    description: >
+      连续两组的 ERCfg 配置组编号必须递增，
+      确保配置组按顺序加载，避免跳跃式切换导致参数未初始化
     group_count: 2
     rules:
       - type: "sequence"
         field: "ERCfg.cfgGroup"
         order: "increasing"
 
-  # 跨 top 和 sub 的条件约束（新功能）
-  - name: "功率切换时ERCfg限制"
-    description: "当 opSch 功率模式提升时，ERCfg 配置组不能降低"
+  # 跨 top 和 sub 的条件约束
+  - name: "功率提升时 ERCfg 配置组下限保护"
+    description: >
+      当从低功率模式切换出去时，下一组的 ERCfg 不能使用配置组 0，
+      因为配置组 0 的参数仅适用于低功率场景，在其他场景下可能不安全
     group_count: 2
     rules:
       - type: "conditional"
@@ -134,8 +162,10 @@ multi_constraints:
         forbid: ["0"]  # 从低功率切换出来时，ERCfg 不能用配置组 0
 
   # 功率等级切换规则（使用前缀）
-  - name: "opSch功率等级切换规则"
-    description: "定义允许的功率等级切换路径"
+  - name: "功率等级切换路径白名单"
+    description: >
+      定义允许的功率等级切换路径：只允许保持当前等级或相邻等级间切换，
+      禁止从高功率直接跳到低功率，防止电压骤降造成硬件损坏
     group_count: 2
 
     only_allow_combinations:

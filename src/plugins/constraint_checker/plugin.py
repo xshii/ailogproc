@@ -293,7 +293,8 @@ class ConstraintCheckerPlugin(Plugin):
                             "forbidden": forbidden_values,
                             "message": (
                                 f"[组{group_idx}] {rule_name}: "
-                                f"字段 '{field}' 的值 '{value}' 在禁止列表中"
+                                f"字段 '{field}' 的值 '{value}' "
+                                f"在禁止列表 {forbidden_values} 中"
                             ),
                         }
                     )
@@ -441,6 +442,7 @@ class ConstraintCheckerPlugin(Plugin):
 
         if not is_valid:
             group_indices = [start_idx + i for i in range(len(groups))]
+            order_desc = "递增" if order == "increasing" else "递减"
             return {
                 "type": "sequence",
                 "rule": rule_name,
@@ -448,7 +450,7 @@ class ConstraintCheckerPlugin(Plugin):
                 "field": field,
                 "order": order,
                 "values": values,
-                "message": f"[组{group_indices}] {rule_name}: 字段 '{field}' 的值 {values} 不满足{order}序列",
+                "message": f"[组{group_indices}] {rule_name}: 字段 '{field}' 的值 {values} 不满足{order_desc}序列",
             }
 
         return None
@@ -508,9 +510,12 @@ class ConstraintCheckerPlugin(Plugin):
                 "rule": rule_name,
                 "when_group": start_idx + when_group,
                 "then_group": start_idx + then_group,
-                "message": f"[组{start_idx + when_group}->{start_idx + then_group}] {rule_name}: "
-                f"当组{start_idx + when_group}的 {when_field}={when_value} 时，"
-                f"组{start_idx + then_group}的 {then_field} 不应为 {actual_then_value}",
+                "message": (
+                    f"[组{start_idx + when_group}->{start_idx + then_group}] {rule_name}: "
+                    f"当组{start_idx + when_group}的 {when_field}={when_value} 时，"
+                    f"组{start_idx + then_group}的 {then_field} "
+                    f"不应为 '{actual_then_value}'（禁止值: {forbid}）"
+                ),
             }
 
         return None

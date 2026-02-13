@@ -9,37 +9,40 @@ versions:
   - version: "1.0.0"
     date: "2024-01-15"
     file: "v1.0.0_20240115.yaml"
-    description: "初始版本约束规则"
+    description: "初始版本：支持 only_allow、forbid 单组约束和 same_value、conditional 多组约束"
     deprecated: false
 
   - version: "1.1.0"
     date: "2024-02-08"
     file: "v1.1.0_20240208.yaml"
-    description: "增强版本 - 新增三组级联约束"
+    description: "增强版本：新增 sequence 递增/递减检查、三组级联约束、多条件触发"
+    features:
+      - "debugLevel 允许级别扩展到 0-3"
+      - "powerMode 新增 high 模式"
+      - "新增三组配置ID递增检查（sequence）"
+      - "新增级联功率控制约束（三组 conditional）"
     deprecated: false
 
   - version: "1.2.0"
     date: "2024-02-08"
     file: "v1.2.0_20240208.yaml"
-    description: "新增字段组合约束 - only_allow_combinations"
+    description: "新增 only_allow_combinations：支持单组字段配套约束和多组状态转换路径白名单"
     features:
-      - "单组内多字段组合约束"
-      - "多组间字段组合映射约束"
-      - "功率等级切换规则示例"
-      - "温度风扇级联控制示例"
+      - "单组内多字段组合约束（如功率-电压-频率配套）"
+      - "多组间状态转换路径白名单（如功率切换、温度风扇级联）"
     deprecated: false
 
   - version: "1.3.0"
     date: "2024-02-08"
     file: "v1.3.0_20240208.yaml"
-    description: "字段统一使用带前缀格式 - 支持子表字段约束"
+    description: "字段统一使用 sectionName.fieldName 前缀格式，支持子表字段约束和跨表组合约束"
     features:
-      - "所有字段使用 'sectionName.fieldName' 格式"
-      - "支持对子表字段进行约束检查"
-      - "不同子表的同名字段可以明确区分"
-      - "跨 top 和 sub 表的组合约束"
+      - "所有字段使用 'sectionName.fieldName' 格式，消除字段归属歧义"
+      - "支持对子表字段（如 ERCfg、I2C）进行约束检查"
+      - "重复子表通过索引区分（如 I2C.0.speed、I2C.1.speed）"
+      - "支持跨 top 和 sub 表的条件约束和组合约束"
     breaking_changes:
-      - "字段名格式变更：必须使用前缀格式（如 opSch.powerLevel）"
+      - "字段名格式变更：必须使用前缀格式（如 opSch.powerLevel），旧格式不兼容"
     deprecated: false
 
 # 版本命名规范:
