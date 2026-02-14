@@ -1,45 +1,20 @@
 # 约束规则版本索引
-# 用于管理所有版本的元数据和激活状态
 
 # 默认使用的版本（null 表示自动使用最新版本）
-active_version: null  # 自动使用最新版本（按版本号排序）
+active_version: null
 
 # 所有版本列表
 versions:
-  - version: "1.0.0"
-    date: "2024-01-15"
-    file: "v1.0.0_20240115.yaml"
-    description: "初始版本约束规则"
-    deprecated: false
-
-  - version: "1.1.0"
-    date: "2024-02-08"
-    file: "v1.1.0_20240208.yaml"
-    description: "增强版本 - 新增三组级联约束"
-    deprecated: false
-
-  - version: "1.2.0"
-    date: "2024-02-08"
-    file: "v1.2.0_20240208.yaml"
-    description: "新增字段组合约束 - only_allow_combinations"
+  - version: "1.4.0"
+    date: "2024-02-10"
+    file: "v1.4.0_20240210.yaml"
+    description: "统一架构版本：associate_by 关联约束、统一检查引擎、AST 安全表达式"
     features:
-      - "单组内多字段组合约束"
-      - "多组间字段组合映射约束"
-      - "功率等级切换规则示例"
-      - "温度风扇级联控制示例"
-    deprecated: false
-
-  - version: "1.3.0"
-    date: "2024-02-08"
-    file: "v1.3.0_20240208.yaml"
-    description: "字段统一使用带前缀格式 - 支持子表字段约束"
-    features:
-      - "所有字段使用 'sectionName.fieldName' 格式"
-      - "支持对子表字段进行约束检查"
-      - "不同子表的同名字段可以明确区分"
-      - "跨 top 和 sub 表的组合约束"
-    breaking_changes:
-      - "字段名格式变更：必须使用前缀格式（如 opSch.powerLevel）"
+      - "associate_by 角色式关联：通过 where 条件识别 src1/src2/src3 角色"
+      - "links 异构关联：支持同字段、跨字段、多字段联合匹配"
+      - "支持线性链、扇入、扇出等拓扑结构"
+      - "统一检查引擎：滑动窗口和关联约束共享同一套 same_value/sequence/conditional/combinations"
+      - "validate 表达式：基于 AST 白名单的安全求值器（可选 CEL 引擎）"
     deprecated: false
 
 # 版本命名规范:
@@ -48,8 +23,3 @@ versions:
 # - MINOR: 功能新增（向后兼容）
 # - PATCH: bug修复（向后兼容）
 # - 日期: 创建日期 YYYYMMDD
-
-# 使用建议:
-# 1. 生产环境指定固定版本: active_version: "1.0.0"
-# 2. 测试环境使用最新版本: active_version: null
-# 3. 废弃版本标记: deprecated: true
