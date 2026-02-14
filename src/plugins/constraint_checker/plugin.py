@@ -6,6 +6,7 @@ import ast
 import json
 import os
 from datetime import datetime
+from itertools import product
 from typing import Dict, List
 
 import yaml
@@ -20,21 +21,18 @@ class ConstraintCheckerPlugin(Plugin):
     level = 2  # 验证层，在 config_parser 之后执行
     dependencies = ["config_parser"]  # 依赖配置解析插件
 
+    # ==================== 约束类型注册表 ====================
+    # 新增约束类型只需：1) 添加方法 _check_xxx  2) 注册到此表
+    _CHECKER_MAP = {
+        "same_value": "_check_same_value",
+        "sequence": "_check_sequence",
+        "conditional": "_check_conditional",
+        "combinations": "_check_combinations",
+        "validate": "_check_validate_expr",
+    }
+
     def execute(self, context: dict) -> dict:
-        """检查配置约束
-
-        Args:
-            context: 上下文字典，需要包含：
-                - config_parser.sections: 配置块列表
-                - config_parser.parser: ConfigParser实例
-
-        Returns:
-            {
-                'validation_passed': True/False,
-                'violations': 违规列表,
-                'version': 使用的规则版本
-            }
-        """
+        """检查配置约束"""
         sections, parser = self._extract_config_data(context)
 
         if not sections:
@@ -75,19 +73,12 @@ class ConstraintCheckerPlugin(Plugin):
     ) -> list:
         """运行所有约束检查"""
         violations = []
-
-        # 检查单组约束
-        single_violations = self._check_single_constraints(
-            sections, rules, parser, context
+        violations.extend(
+            self._check_single_constraints(sections, rules, parser, context)
         )
-        violations.extend(single_violations)
-
-        # 检查多组约束
-        multi_violations = self._check_multi_constraints(
-            sections, rules, parser, context
+        violations.extend(
+            self._check_multi_constraints(sections, rules, parser, context)
         )
-        violations.extend(multi_violations)
-
         return violations
 
     def _build_result(self, violations: list, version: str) -> dict:
@@ -117,7 +108,6 @@ class ConstraintCheckerPlugin(Plugin):
             if report_path:
                 result["report_path"] = report_path
                 debug(f"[约束检查] 报告已生成: {report_path}")
-
         return result
 
     def _apply_check_only_mode(self, result: dict) -> dict:
@@ -125,7 +115,6 @@ class ConstraintCheckerPlugin(Plugin):
         if self.config.get("check_only", False):
             info("[约束检查] 仅检查模式：跳过后续插件执行")
             result["stop_pipeline"] = True
-
         return result
 
     def _get_active_rules(self) -> tuple:
@@ -134,24 +123,16 @@ class ConstraintCheckerPlugin(Plugin):
         优先级：
         1. 配置中的 constraint_rules（用于测试）
         2. rules/ 目录中的规则文件（生产环境）
-
-        Returns:
-            (version, rules): 版本名称和规则字典
         """
         # 1. 优先检查配置中的 constraint_rules（用于测试）
         constraint_rules = self.config.get("constraint_rules", {})
         if constraint_rules:
             active_version = self.config.get("active_version")
-
-            # 如果指定了版本，使用指定版本
             if active_version and active_version in constraint_rules:
                 return active_version, constraint_rules[active_version]
-
-            # 否则使用最新版本（按版本号排序）
             versions = sorted(constraint_rules.keys())
             if versions:
-                latest_version = versions[-1]
-                return latest_version, constraint_rules[latest_version]
+                return versions[-1], constraint_rules[versions[-1]]
 
         # 2. 从 rules/ 目录加载规则文件（生产环境）
         plugin_dir = os.path.dirname(os.path.abspath(__file__))
@@ -162,7 +143,6 @@ class ConstraintCheckerPlugin(Plugin):
             warning(f"[约束检查] 规则目录不存在: {rules_path}")
             return "none", {"single_constraints": [], "multi_constraints": []}
 
-        # 获取所有规则文件（格式: v1.0.0_20240115.yaml）
         import re
 
         rule_files = [
@@ -175,36 +155,25 @@ class ConstraintCheckerPlugin(Plugin):
             warning(f"[约束检查] 规则目录中没有规则文件: {rules_path}")
             return "none", {"single_constraints": [], "multi_constraints": []}
 
-        # 提取版本号（去掉 "v" 前缀和 ".yaml" 后缀）
-        # v1.3.0_20240208.yaml -> 1.3.0_20240208
         available_versions = [f[1:-5] for f in rule_files]
-
-        # 确定要使用的版本
         active_version = self.config.get("active_version")
 
         if active_version:
-            # 使用指定版本
             if active_version not in available_versions:
                 warning(f"[约束检查] 指定的规则版本不存在: {active_version}")
-                warning(f"[约束检查] 可用版本: {', '.join(sorted(available_versions))}")
                 return "none", {"single_constraints": [], "multi_constraints": []}
             target_version = active_version
         else:
-            # 使用最新版本（按版本号排序）
             target_version = sorted(available_versions)[-1]
 
-        # 加载规则文件
         rule_file = os.path.join(rules_path, f"v{target_version}.yaml")
         try:
             with open(rule_file, encoding="utf-8") as f:
                 rules = yaml.safe_load(f)
-
             if not rules:
                 warning(f"[约束检查] 规则文件为空: {rule_file}")
                 return "none", {"single_constraints": [], "multi_constraints": []}
-
             return target_version, rules
-
         except Exception as e:
             error(f"[约束检查] 加载规则文件失败: {rule_file}, 错误: {e}")
             return "none", {"single_constraints": [], "multi_constraints": []}
@@ -217,19 +186,15 @@ class ConstraintCheckerPlugin(Plugin):
         """检查单组约束"""
         violations = []
         single_constraints = rules.get("single_constraints", [])
-
-        # 获取 top 配置关键字
         top_keyword = self._get_top_keyword(context)
-
-        # 将配置按 top 分组
         groups = parser.group_by_top_config(top_keyword) if parser else []
 
         for group_idx, group in enumerate(groups):
             flat_fields = self._flatten_group_fields(group)
-
             for rule in single_constraints:
-                rule_violations = self._check_single_rule(flat_fields, rule, group_idx)
-                violations.extend(rule_violations)
+                violations.extend(
+                    self._check_single_rule(flat_fields, rule, group_idx)
+                )
 
         return violations
 
@@ -238,56 +203,38 @@ class ConstraintCheckerPlugin(Plugin):
     ) -> List[Dict]:
         """检查单个单组约束规则"""
         violations = []
-        fields = flat_fields
-
-        # 检查触发条件
         when_conditions = rule.get("when", {})
-        if not self._match_conditions(fields, when_conditions):
-            return violations  # 条件不匹配，跳过
+        if not self._match_conditions(flat_fields, when_conditions):
+            return violations
 
         rule_name = rule.get("name", "未命名规则")
 
-        # 检查 only_allow 约束
-        only_allow = rule.get("only_allow", {})
-        for field, allowed_values in only_allow.items():
-            if field in fields:
-                value = str(fields[field])
+        for field, allowed_values in rule.get("only_allow", {}).items():
+            if field in flat_fields:
+                value = str(flat_fields[field])
                 if value not in allowed_values:
                     violations.append(
-                        {
-                            "type": "only_allow",
-                            "rule": rule_name,
-                            "group": group_idx,
-                            "field": field,
-                            "value": value,
-                            "allowed": allowed_values,
-                            "message": (
-                                f"[组{group_idx}] {rule_name}: 字段 '{field}' "
-                                f"的值 '{value}' 不在允许列表 {allowed_values} 中"
-                            ),
-                        }
+                        self._make_violation(
+                            "only_allow", rule_name, f"组{group_idx}",
+                            f"字段 '{field}' 的值 '{value}' "
+                            f"不在允许列表 {allowed_values} 中",
+                            group=group_idx, field=field,
+                            value=value, allowed=allowed_values,
+                        )
                     )
 
-        # 检查 forbid 约束
-        forbid = rule.get("forbid", {})
-        for field, forbidden_values in forbid.items():
-            if field in fields:
-                value = str(fields[field])
+        for field, forbidden_values in rule.get("forbid", {}).items():
+            if field in flat_fields:
+                value = str(flat_fields[field])
                 if value in forbidden_values:
                     violations.append(
-                        {
-                            "type": "forbid",
-                            "rule": rule_name,
-                            "group": group_idx,
-                            "field": field,
-                            "value": value,
-                            "forbidden": forbidden_values,
-                            "message": (
-                                f"[组{group_idx}] {rule_name}: "
-                                f"字段 '{field}' 的值 '{value}' "
-                                f"在禁止列表 {forbidden_values} 中"
-                            ),
-                        }
+                        self._make_violation(
+                            "forbid", rule_name, f"组{group_idx}",
+                            f"字段 '{field}' 的值 '{value}' "
+                            f"在禁止列表 {forbidden_values} 中",
+                            group=group_idx, field=field,
+                            value=value, forbidden=forbidden_values,
+                        )
                     )
 
         return violations
@@ -300,22 +247,19 @@ class ConstraintCheckerPlugin(Plugin):
         """检查多组约束（统一处理滑动窗口和关联约束）"""
         violations = []
         multi_constraints = rules.get("multi_constraints", [])
-
         if not multi_constraints:
             return violations
 
         top_keyword = self._get_top_keyword(context)
         groups = parser.group_by_top_config(top_keyword) if parser else []
-
         if len(groups) < 2:
             return violations
 
         for rule in multi_constraints:
             if "associate_by" in rule:
-                rule_violations = self._check_associated_rule(groups, rule)
+                violations.extend(self._check_associated_rule(groups, rule))
             else:
-                rule_violations = self._check_sliding_window_rule(groups, rule)
-            violations.extend(rule_violations)
+                violations.extend(self._check_sliding_window_rule(groups, rule))
 
         return violations
 
@@ -328,16 +272,13 @@ class ConstraintCheckerPlugin(Plugin):
 
         for start_idx in range(len(groups) - group_count + 1):
             window = groups[start_idx : start_idx + group_count]
-
-            # 转换为统一的角色分配格式（group0, group1, ...）
-            role_assignment = {}
-            for i, g in enumerate(window):
-                role_key = f"group{i}"
-                role_assignment[role_key] = {
+            role_assignment = {
+                f"group{i}": {
                     "idx": start_idx + i,
                     "fields": self._flatten_group_fields(g),
                 }
-
+                for i, g in enumerate(window)
+            }
             violations.extend(
                 self._check_constraints_on_assignment(rule, role_assignment)
             )
@@ -352,19 +293,16 @@ class ConstraintCheckerPlugin(Plugin):
         rule_name = rule.get("name", "未命名规则")
         associate_by = rule.get("associate_by", {})
 
-        # 1. 解析角色定义
         role_defs = self._parse_role_definitions(associate_by)
         if not role_defs:
             warning(f"[约束检查] {rule_name}: associate_by 中未定义有效角色")
             return violations
 
-        # 2. 扁平化所有组的字段
-        flat_groups = []
-        for idx, group in enumerate(groups):
-            flat_fields = self._flatten_group_fields(group)
-            flat_groups.append({"idx": idx, "fields": flat_fields})
+        flat_groups = [
+            {"idx": idx, "fields": self._flatten_group_fields(group)}
+            for idx, group in enumerate(groups)
+        ]
 
-        # 3. 按角色分类候选组
         role_candidates = self._classify_by_roles(flat_groups, role_defs)
 
         for role_key in role_defs:
@@ -375,17 +313,13 @@ class ConstraintCheckerPlugin(Plugin):
                 )
                 return violations
 
-        # 4. 查找满足所有 links 条件的关联组合
         links = associate_by.get("links", [])
-        matched_tuples = self._find_matched_tuples(
-            role_defs, role_candidates, links
-        )
+        matched_tuples = self._match_roles(role_defs, role_candidates, links)
 
         if not matched_tuples:
             debug(f"[约束检查] {rule_name}: 没有找到满足关联条件的组合")
             return violations
 
-        # 5. 对每个匹配的组合，使用统一检查
         for role_assignment in matched_tuples:
             violations.extend(
                 self._check_constraints_on_assignment(rule, role_assignment)
@@ -393,75 +327,57 @@ class ConstraintCheckerPlugin(Plugin):
 
         return violations
 
-    # ==================== 统一约束检查 ====================
+    # ==================== 统一约束检查（注册表分发） ====================
 
     def _check_constraints_on_assignment(
         self, rule: Dict, role_assignment: Dict[str, Dict]
     ) -> List[Dict]:
-        """统一的约束检查入口
-
-        无论来源是滑动窗口还是关联匹配，都使用相同的检查逻辑。
-
-        Args:
-            rule: 约束规则
-            role_assignment: 角色分配 {"group0": {...}, "group1": {...}}
-                           或 {"src1": {...}, "src2": {...}, "src3": {...}}
-        """
+        """统一约束检查入口：通过注册表分发，一个循环处理所有类型"""
         violations = []
         rule_name = rule.get("name", "未命名规则")
         roles = sorted(role_assignment.keys())
         role_label = self._build_role_label(role_assignment, roles)
 
-        # 1. rules 中的约束
         for constraint in rule.get("rules", []):
             constraint_type = constraint.get("type")
-            violation = None
-
-            if constraint_type == "same_value":
-                violation = self._check_same_value(
-                    role_assignment, constraint, rule_name, role_label, roles
-                )
-            elif constraint_type == "sequence":
-                violation = self._check_sequence(
-                    role_assignment, constraint, rule_name, role_label, roles
-                )
-            elif constraint_type == "conditional":
-                violation = self._check_conditional(
-                    role_assignment, constraint, rule_name, role_label
-                )
-
-            if violation:
-                violations.append(violation)
-
-        # 2. only_allow_combinations
-        combinations = rule.get("only_allow_combinations", [])
-        if combinations:
-            violation = self._check_combinations(
-                role_assignment, combinations, rule_name, role_label, roles
-            )
-            if violation:
-                violations.append(violation)
-
-        # 3. validate（CEL / 安全表达式）
-        for validate_rule in rule.get("validate", []):
-            violation = self._check_validate_expr(
-                role_assignment, validate_rule, rule_name, role_label
+            method_name = self._CHECKER_MAP.get(constraint_type)
+            if not method_name:
+                debug(f"[约束检查] 未知约束类型: {constraint_type}")
+                continue
+            checker = getattr(self, method_name)
+            violation = checker(
+                role_assignment, constraint, rule_name, role_label, roles
             )
             if violation:
                 violations.append(violation)
 
         return violations
 
+    # ==================== Violation 工厂 ====================
+
+    def _make_violation(
+        self, vtype: str, rule_name: str, role_label: str,
+        message: str, **extra
+    ) -> Dict:
+        """统一构造 violation 字典
+
+        修改消息格式只需改这一处。
+        """
+        return {
+            "type": vtype,
+            "rule": rule_name,
+            "message": f"[{role_label}] {rule_name}: {message}",
+            **extra,
+        }
+
     def _build_role_label(
         self, role_assignment: Dict, roles: List[str]
     ) -> str:
         """构建角色标签用于错误消息"""
         if all(r.startswith("group") for r in roles):
-            # 滑动窗口格式：组[0, 1]
             indices = [role_assignment[r]["idx"] for r in roles]
             return f"组{indices}"
         else:
-            # 关联约束格式：src1=组0, src2=组1
             return ", ".join(
                 f"{role}=组{role_assignment[role]['idx']}" for role in roles
             )
@@ -469,36 +385,32 @@ class ConstraintCheckerPlugin(Plugin):
     def _resolve_role_key(self, role_ref, role_assignment: Dict) -> str | None:
         """将约束中的角色引用解析为 role_assignment 中的 key
 
-        支持：
-        - 整数索引 (0, 1) → 映射到 "group0", "group1"
-        - 字符串角色名 ("src1", "group0") → 直接匹配
+        支持整数索引 (0→"group0") 和字符串 ("src1"→"src1")。
         """
-        # 直接匹配
         if role_ref in role_assignment:
             return role_ref
-        # 整数到 "group{n}" 的映射
         if isinstance(role_ref, int):
             key = f"group{role_ref}"
             if key in role_assignment:
                 return key
         return None
 
+    # ==================== 约束检查方法（统一签名） ====================
+    # 签名: (self, role_assignment, constraint, rule_name, role_label, roles)
+    # 新增类型只需：添加方法 + 注册到 _CHECKER_MAP
+
     def _check_same_value(
-        self,
-        role_assignment: Dict[str, Dict],
-        constraint: Dict,
-        rule_name: str,
-        role_label: str,
-        roles: List[str],
-    ) -> Dict | None:
+        self, role_assignment, constraint, rule_name, role_label, roles,
+    ):
         """检查字段在所有角色对应的组中值相同"""
         field = constraint.get("field")
         if not field:
             return None
 
         check_roles = constraint.get("groups", roles)
-        resolved = [self._resolve_role_key(r, role_assignment) for r in check_roles]
-        resolved = [r for r in resolved if r is not None]
+        resolved = [r for r in
+                     (self._resolve_role_key(r, role_assignment) for r in check_roles)
+                     if r is not None]
 
         values = []
         for role in resolved:
@@ -508,27 +420,16 @@ class ConstraintCheckerPlugin(Plugin):
                 values.append(str(val) if val is not None else None)
 
         if len(set(values)) > 1:
-            return {
-                "type": "same_value",
-                "rule": rule_name,
-                "field": field,
-                "values": values,
-                "message": (
-                    f"[{role_label}] {rule_name}: "
-                    f"字段 '{field}' 在各组中的值不一致: {values}"
-                ),
-            }
-
+            return self._make_violation(
+                "same_value", rule_name, role_label,
+                f"字段 '{field}' 在各组中的值不一致: {values}",
+                field=field, values=values,
+            )
         return None
 
     def _check_sequence(
-        self,
-        role_assignment: Dict[str, Dict],
-        constraint: Dict,
-        rule_name: str,
-        role_label: str,
-        roles: List[str],
-    ) -> Dict | None:
+        self, role_assignment, constraint, rule_name, role_label, roles,
+    ):
         """检查字段值序列（递增/递减）"""
         field = constraint.get("field")
         order = constraint.get("order", "increasing")
@@ -536,8 +437,9 @@ class ConstraintCheckerPlugin(Plugin):
             return None
 
         check_roles = constraint.get("groups", roles)
-        resolved = [self._resolve_role_key(r, role_assignment) for r in check_roles]
-        resolved = [r for r in resolved if r is not None]
+        resolved = [r for r in
+                     (self._resolve_role_key(r, role_assignment) for r in check_roles)
+                     if r is not None]
 
         values = []
         for role in resolved:
@@ -550,45 +452,31 @@ class ConstraintCheckerPlugin(Plugin):
                     values.append(None)
 
         if None in values:
-            return {
-                "type": "sequence",
-                "rule": rule_name,
-                "field": field,
-                "message": (
-                    f"[{role_label}] {rule_name}: "
-                    f"字段 '{field}' 存在空值，无法检查序列"
-                ),
-            }
+            return self._make_violation(
+                "sequence", rule_name, role_label,
+                f"字段 '{field}' 存在空值，无法检查序列",
+                field=field,
+            )
 
-        is_valid = True
         if order == "increasing":
             is_valid = all(values[i] < values[i + 1] for i in range(len(values) - 1))
         elif order == "decreasing":
             is_valid = all(values[i] > values[i + 1] for i in range(len(values) - 1))
+        else:
+            is_valid = True
 
         if not is_valid:
             order_desc = "递增" if order == "increasing" else "递减"
-            return {
-                "type": "sequence",
-                "rule": rule_name,
-                "field": field,
-                "order": order,
-                "values": values,
-                "message": (
-                    f"[{role_label}] {rule_name}: "
-                    f"字段 '{field}' 的值 {values} 不满足{order_desc}序列"
-                ),
-            }
-
+            return self._make_violation(
+                "sequence", rule_name, role_label,
+                f"字段 '{field}' 的值 {values} 不满足{order_desc}序列",
+                field=field, order=order, values=values,
+            )
         return None
 
     def _check_conditional(
-        self,
-        role_assignment: Dict[str, Dict],
-        constraint: Dict,
-        rule_name: str,
-        role_label: str,
-    ) -> Dict | None:
+        self, role_assignment, constraint, rule_name, role_label, roles,
+    ):
         """检查条件约束
 
         when_group/then_group 支持整数索引(0, 1)和字符串角色名("src1", "src2")。
@@ -596,13 +484,11 @@ class ConstraintCheckerPlugin(Plugin):
         when_ref = constraint.get("when_group", 0)
         when_field = constraint.get("when_field")
         when_value = str(constraint.get("when_value", ""))
-
         then_ref = constraint.get("then_group", 1)
         then_field = constraint.get("then_field")
 
         when_key = self._resolve_role_key(when_ref, role_assignment)
         then_key = self._resolve_role_key(then_ref, role_assignment)
-
         if when_key is None or then_key is None:
             return None
 
@@ -611,54 +497,39 @@ class ConstraintCheckerPlugin(Plugin):
 
         actual_when_value = str(when_group["fields"].get(when_field, ""))
         if actual_when_value != when_value:
-            return None  # 条件不满足，跳过
+            return None
 
         actual_then_value = str(then_group["fields"].get(then_field, ""))
 
-        # 检查 only_allow
         only_allow = constraint.get("only_allow", [])
         if only_allow and actual_then_value not in only_allow:
-            return {
-                "type": "conditional",
-                "rule": rule_name,
-                "message": (
-                    f"[{role_label}] {rule_name}: "
-                    f"当 {when_ref}(组{when_group['idx']}) 的 "
-                    f"{when_field}={when_value} 时，"
-                    f"{then_ref}(组{then_group['idx']}) 的 {then_field} "
-                    f"应在 {only_allow} 中，实际值为 '{actual_then_value}'"
-                ),
-            }
+            return self._make_violation(
+                "conditional", rule_name, role_label,
+                f"当 {when_ref}(组{when_group['idx']}) 的 "
+                f"{when_field}={when_value} 时，"
+                f"{then_ref}(组{then_group['idx']}) 的 {then_field} "
+                f"应在 {only_allow} 中，实际值为 '{actual_then_value}'",
+            )
 
-        # 检查 forbid
         forbid = constraint.get("forbid", [])
         if forbid and actual_then_value in forbid:
-            return {
-                "type": "conditional",
-                "rule": rule_name,
-                "message": (
-                    f"[{role_label}] {rule_name}: "
-                    f"当 {when_ref}(组{when_group['idx']}) 的 "
-                    f"{when_field}={when_value} 时，"
-                    f"{then_ref}(组{then_group['idx']}) 的 {then_field} "
-                    f"不应为 '{actual_then_value}'（禁止值: {forbid}）"
-                ),
-            }
-
+            return self._make_violation(
+                "conditional", rule_name, role_label,
+                f"当 {when_ref}(组{when_group['idx']}) 的 "
+                f"{when_field}={when_value} 时，"
+                f"{then_ref}(组{then_group['idx']}) 的 {then_field} "
+                f"不应为 '{actual_then_value}'（禁止值: {forbid}）",
+            )
         return None
 
     def _check_combinations(
-        self,
-        role_assignment: Dict[str, Dict],
-        combinations: List[Dict],
-        rule_name: str,
-        role_label: str,
-        roles: List[str],
-    ) -> Dict | None:
-        """检查字段组合白名单
+        self, role_assignment, constraint, rule_name, role_label, roles,
+    ):
+        """检查字段组合白名单"""
+        combinations = constraint.get("allow", [])
+        if not combinations:
+            return None
 
-        组合中的 key 与 role_assignment 的 key 对应（group0/group1 或 src1/src2/src3）。
-        """
         actual_values = {}
         for role in roles:
             group = role_assignment.get(role)
@@ -667,9 +538,8 @@ class ConstraintCheckerPlugin(Plugin):
 
         for combo in combinations:
             if self._match_combination(actual_values, combo, roles):
-                return None  # 匹配成功
+                return None
 
-        # 所有组合都不匹配
         actual_summary_parts = []
         for role in roles:
             if role in actual_values and role in combinations[0]:
@@ -680,15 +550,11 @@ class ConstraintCheckerPlugin(Plugin):
                 }
                 actual_summary_parts.append(f"{role}={role_vals}")
 
-        return {
-            "type": "combinations",
-            "rule": rule_name,
-            "message": (
-                f"[{role_label}] {rule_name}: "
-                f"字段组合 ({', '.join(actual_summary_parts)}) "
-                f"不在允许的 {len(combinations)} 个组合中"
-            ),
-        }
+        return self._make_violation(
+            "combinations", rule_name, role_label,
+            f"字段组合 ({', '.join(actual_summary_parts)}) "
+            f"不在允许的 {len(combinations)} 个组合中",
+        )
 
     def _match_combination(
         self, actual_values: Dict, combo: Dict, roles: List[str]
@@ -701,36 +567,20 @@ class ConstraintCheckerPlugin(Plugin):
             if not isinstance(expected, dict):
                 continue
             actual = actual_values.get(role, {})
-
             for field, expected_val in expected.items():
-                actual_val = str(actual.get(field, ""))
-                if actual_val != str(expected_val):
+                if str(actual.get(field, "")) != str(expected_val):
                     return False
-
         return True
 
-    # ==================== 表达式验证 ====================
-
     def _check_validate_expr(
-        self,
-        role_assignment: Dict[str, Dict],
-        validate_rule: Dict,
-        rule_name: str,
-        role_label: str,
-    ) -> Dict | None:
-        """使用 CEL 或安全表达式检查约束
-
-        validate_rule 格式:
-          expr: "src2.opSch.bufSize >= src1.opSch.dataRate * 2"
-          message: "上游功率不能低于下游"
-        """
-        expr = validate_rule.get("expr", "")
-        custom_message = validate_rule.get("message", "表达式验证失败")
-
+        self, role_assignment, constraint, rule_name, role_label, roles,
+    ):
+        """使用 CEL 或安全表达式检查约束"""
+        expr = constraint.get("expr", "")
+        custom_message = constraint.get("message", "表达式验证失败")
         if not expr:
             return None
 
-        # 构建执行上下文：将扁平字段转为嵌套字典
         eval_context = {}
         for role, group in role_assignment.items():
             role_fields = {}
@@ -741,7 +591,6 @@ class ConstraintCheckerPlugin(Plugin):
                     if part not in current:
                         current[part] = {}
                     current = current[part]
-                # 尝试转为数值以支持比较运算
                 try:
                     field_val = int(field_val)
                 except (ValueError, TypeError):
@@ -752,30 +601,22 @@ class ConstraintCheckerPlugin(Plugin):
                 current[parts[-1]] = field_val
             eval_context[role] = role_fields
 
-        # 优先尝试 CEL 引擎
         result = self._evaluate_cel(expr, eval_context)
-
         if result is None:
-            # CEL 不可用，使用 AST 安全求值
             result = self._evaluate_safe_expr(expr, eval_context)
 
         if result is False:
-            return {
-                "type": "validate",
-                "rule": rule_name,
-                "roles": {r: role_assignment[r]["idx"] for r in role_assignment},
-                "expr": expr,
-                "message": f"[{role_label}] {rule_name}: {custom_message}",
-            }
-
+            return self._make_violation(
+                "validate", rule_name, role_label, custom_message,
+                expr=expr,
+                roles={r: role_assignment[r]["idx"] for r in role_assignment},
+            )
         return None
 
-    def _evaluate_cel(self, expr: str, context: Dict) -> bool | None:
-        """使用 CEL 引擎求值（可选依赖）
+    # ==================== 表达式求值 ====================
 
-        Returns:
-            True/False 表示结果，None 表示 CEL 不可用
-        """
+    def _evaluate_cel(self, expr: str, context: Dict) -> bool | None:
+        """使用 CEL 引擎求值（可选依赖）"""
         try:
             import celpy
 
@@ -787,21 +628,15 @@ class ConstraintCheckerPlugin(Plugin):
             for key, value in context.items():
                 cel_context[key] = celpy.json_to_cel(value)
 
-            result = prgm.evaluate(cel_context)
-            return bool(result)
+            return bool(prgm.evaluate(cel_context))
         except ImportError:
-            return None  # CEL 不可用
+            return None
         except Exception as e:
             debug(f"[约束检查] CEL 表达式求值失败: {expr}, 错误: {e}")
             return None
 
     def _evaluate_safe_expr(self, expr: str, context: Dict) -> bool | None:
-        """基于 AST 的安全表达式求值
-
-        仅支持：比较(>=, <=, >, <, ==, !=)、算术(+, -, *, /)、
-        逻辑(and, or, not)、属性访问(src1.opSch.powerLevel)、常量。
-        不支持函数调用、下标访问、import 等危险操作。
-        """
+        """基于 AST 的安全表达式求值（白名单模式）"""
         try:
             tree = ast.parse(expr, mode="eval")
             return bool(self._eval_node(tree.body, context))
@@ -810,7 +645,7 @@ class ConstraintCheckerPlugin(Plugin):
             return None
 
     def _eval_node(self, node, context: Dict):
-        """递归求值 AST 节点（白名单模式）"""
+        """递归求值 AST 节点"""
         if isinstance(node, ast.Compare):
             left = self._eval_node(node.left, context)
             for op, comparator in zip(node.ops, node.comparators):
@@ -894,84 +729,43 @@ class ConstraintCheckerPlugin(Plugin):
     ) -> Dict[str, List[Dict]]:
         """将配置组按角色分类"""
         role_candidates = {role: [] for role in role_defs}
-
         for fg in flat_groups:
             for role, role_def in role_defs.items():
                 where = role_def.get("where", {})
                 if self._match_conditions(fg["fields"], where):
                     role_candidates[role].append(fg)
-
         return role_candidates
 
-    def _find_matched_tuples(
+    def _match_roles(
         self,
         role_defs: Dict,
         role_candidates: Dict[str, List[Dict]],
         links: List[Dict],
     ) -> List[Dict[str, Dict]]:
-        """查找满足所有 links 条件的角色组合"""
+        """通用 N 角色匹配
+
+        使用 itertools.product 笛卡尔积 + links 过滤，
+        自动支持 2、3、...N 个角色，无需为每种数量写专用方法。
+        """
         roles = sorted(role_defs.keys())
-
-        if len(roles) == 2:
-            return self._match_two_roles(roles, role_candidates, links)
-        elif len(roles) == 3:
-            return self._match_three_roles(roles, role_candidates, links)
-
-        return []
-
-    def _match_two_roles(
-        self,
-        roles: List[str],
-        role_candidates: Dict[str, List[Dict]],
-        links: List[Dict],
-    ) -> List[Dict[str, Dict]]:
-        """匹配两个角色的组合"""
         matched = []
-        r1, r2 = roles[0], roles[1]
 
-        for c1 in role_candidates[r1]:
-            for c2 in role_candidates[r2]:
-                if c1["idx"] == c2["idx"]:
-                    continue
+        for combo in product(*(role_candidates[r] for r in roles)):
+            # 每个角色必须对应不同的配置组
+            indices = [c["idx"] for c in combo]
+            if len(set(indices)) != len(indices):
+                continue
 
-                assignment = {r1: c1, r2: c2}
-                if self._check_links(assignment, links):
-                    matched.append(assignment)
-
-        return matched
-
-    def _match_three_roles(
-        self,
-        roles: List[str],
-        role_candidates: Dict[str, List[Dict]],
-        links: List[Dict],
-    ) -> List[Dict[str, Dict]]:
-        """匹配三个角色的组合"""
-        matched = []
-        r1, r2, r3 = roles[0], roles[1], roles[2]
-
-        for c1 in role_candidates[r1]:
-            for c2 in role_candidates[r2]:
-                if c1["idx"] == c2["idx"]:
-                    continue
-                for c3 in role_candidates[r3]:
-                    if c3["idx"] in (c1["idx"], c2["idx"]):
-                        continue
-
-                    assignment = {r1: c1, r2: c2, r3: c3}
-                    if self._check_links(assignment, links):
-                        matched.append(assignment)
+            assignment = dict(zip(roles, combo))
+            if self._check_links(assignment, links):
+                matched.append(assignment)
 
         return matched
 
     def _check_links(
         self, assignment: Dict[str, Dict], links: List[Dict]
     ) -> bool:
-        """检查角色分配是否满足所有 links 条件
-
-        每条 link 格式: {"src1": "opSch.outPort", "src2": "opSch.inPort"}
-        或多字段: {"src1": ["opSch.chId", "opSch.bankId"], "src2": [...]}
-        """
+        """检查角色分配是否满足所有 links 条件"""
         for link in links:
             link_roles = [k for k in link if k in assignment]
             if len(link_roles) != 2:
@@ -981,7 +775,6 @@ class ConstraintCheckerPlugin(Plugin):
             fields_a = link[role_a]
             fields_b = link[role_b]
 
-            # 统一为列表
             if isinstance(fields_a, str):
                 fields_a = [fields_a]
             if isinstance(fields_b, str):
@@ -1006,9 +799,7 @@ class ConstraintCheckerPlugin(Plugin):
     def _match_conditions(self, fields: Dict, conditions: Dict) -> bool:
         """检查字段是否匹配条件
 
-        支持：
-        - 精确匹配: {"field": "value"}
-        - 通配符: {"field": "*"} 表示字段只要存在即可
+        支持精确匹配和 "*" 通配符（字段存在即可）。
         """
         for field, expected_value in conditions.items():
             actual_value = fields.get(field)
@@ -1022,44 +813,24 @@ class ConstraintCheckerPlugin(Plugin):
         return True
 
     def _flatten_group_fields(self, group: Dict) -> Dict:
-        """将 group 的所有字段扁平化为一个字典（所有字段都带前缀）
-
-        Args:
-            group: 包含 top 和 subs 的组字典
-
-        Returns:
-            扁平化的字段字典：
-                {
-                    "opSch.powerLevel": "5",    # top 字段
-                    "I2C.0.speed": "100K",      # 重复 section 添加索引
-                    "I2C.1.speed": "400K",
-                    "SPI.mode": "master"        # 单个 section 不添加索引
-                }
-        """
+        """将 group 的所有字段扁平化为带前缀的字典"""
         flat_fields = {}
 
-        # 添加 top 字段（带前缀）
         top_section = group.get("top")
         if top_section:
             section_name = top_section.get("name", "")
-            top_fields = top_section.get("fields", {})
+            for field_name, field_value in top_section.get("fields", {}).items():
+                flat_fields[f"{section_name}.{field_name}"] = field_value
 
-            for field_name, field_value in top_fields.items():
-                prefixed_name = f"{section_name}.{field_name}"
-                flat_fields[prefixed_name] = field_value
-
-        # 统计 sub section 的名称出现次数
         subs = group.get("subs", [])
         section_name_counts = {}
         for sub in subs:
             name = sub.get("name", "")
             section_name_counts[name] = section_name_counts.get(name, 0) + 1
 
-        # 添加 sub 字段（重复名称添加索引）
         section_indices = {}
         for sub_section in subs:
             section_name = sub_section.get("name", "")
-            sub_fields = sub_section.get("fields", {})
 
             if section_name_counts.get(section_name, 0) > 1:
                 idx = section_indices.get(section_name, 0)
@@ -1068,35 +839,27 @@ class ConstraintCheckerPlugin(Plugin):
             else:
                 section_prefix = section_name
 
-            for field_name, field_value in sub_fields.items():
-                prefixed_name = f"{section_prefix}.{field_name}"
-                flat_fields[prefixed_name] = field_value
+            for field_name, field_value in sub_section.get("fields", {}).items():
+                flat_fields[f"{section_prefix}.{field_name}"] = field_value
 
         return flat_fields
 
     def _get_top_keyword(self, context: dict = None) -> str:
-        """获取 top 配置关键字
-
-        优先级：
-        1. constraint_checker 自己的配置（top_keyword）
-        2. context 中的 excel_writer_config（top_table.log_keyword）
-        3. 默认值 "opSch"
-        """
+        """获取 top 配置关键字"""
         if "top_keyword" in self.config:
             return self.config["top_keyword"]
-
         if context:
             excel_writer_config = context.get("excel_writer_config")
             if excel_writer_config:
-                top_table = excel_writer_config.get("top_table", {})
-                log_keyword = top_table.get("log_keyword")
+                log_keyword = excel_writer_config.get("top_table", {}).get(
+                    "log_keyword"
+                )
                 if log_keyword:
                     return log_keyword
-
         return "opSch"
 
     def _generate_report(self, result: dict, _context: dict) -> str:
-        """生成极简 JSON 报告"""
+        """生成 JSON 报告"""
         try:
             report_path = self.config.get("report_path")
             if not report_path:
@@ -1116,9 +879,7 @@ class ConstraintCheckerPlugin(Plugin):
                 for v in result["violations"]:
                     vtype = v.get("type", "unknown")
                     by_type[vtype] = by_type.get(vtype, 0) + 1
-
                 report["summary"] = by_type
-
                 report["errors"] = [
                     {
                         "type": v.get("type"),
@@ -1135,7 +896,6 @@ class ConstraintCheckerPlugin(Plugin):
 
             info(f"[约束检查] 报告已保存: {report_path}")
             return report_path
-
         except Exception as e:
             error(f"[约束检查] 生成报告失败: {e}")
             return None

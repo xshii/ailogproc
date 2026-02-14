@@ -127,16 +127,18 @@ multi_constraints:
       links:
         - { src1: "opSch.channelId", src2: "opSch.channelId" }
         - { src2: "opSch.outBufId", src3: "opSch.inBufId" }
-    only_allow_combinations:
-      - src1: { opSch.powerLevel: "15" }
-        src2: { opSch.powerLevel: "10" }
-        src3: { opSch.powerLevel: "5" }
-      - src1: { opSch.powerLevel: "10" }
-        src2: { opSch.powerLevel: "10" }
-        src3: { opSch.powerLevel: "5" }
-      - src1: { opSch.powerLevel: "10" }
-        src2: { opSch.powerLevel: "5" }
-        src3: { opSch.powerLevel: "5" }
+    rules:
+      - type: "combinations"
+        allow:
+          - src1: { opSch.powerLevel: "15" }
+            src2: { opSch.powerLevel: "10" }
+            src3: { opSch.powerLevel: "5" }
+          - src1: { opSch.powerLevel: "10" }
+            src2: { opSch.powerLevel: "10" }
+            src3: { opSch.powerLevel: "5" }
+          - src1: { opSch.powerLevel: "10" }
+            src2: { opSch.powerLevel: "5" }
+            src3: { opSch.powerLevel: "5" }
 
   # --- 示例5: CEL 表达式约束 ---
   - name: "缓冲区大小与数据速率匹配"
@@ -150,8 +152,9 @@ multi_constraints:
         where: { opSch.opType: "compute" }
       links:
         - { src1: "opSch.channelId", src2: "opSch.channelId" }
-    validate:
-      - expr: "src2.opSch.bufSize >= src1.opSch.dataRate * 2"
+    rules:
+      - type: "validate"
+        expr: "src2.opSch.bufSize >= src1.opSch.dataRate * 2"
         message: "计算算子缓冲区大小必须≥DMA数据速率的2倍"
 
   # --- 示例6: 扇出拓扑（src1 分别关联 src2 和 src3） ---
@@ -185,10 +188,12 @@ multi_constraints:
 #     links:           关联条件列表
 #       - { src1: "field_a", src2: "field_b" }  # src1.field_a == src2.field_b
 #
-#   支持的约束类型（与传统多组约束相同）：
-#     - same_value, sequence, conditional
-#     - only_allow_combinations（使用角色名代替 group0/group1）
-#     - validate: CEL 表达式（可选，需安装 cel-python）
+#   所有约束类型统一放在 rules 列表中：
+#     - type: same_value     — 字段值一致性
+#     - type: sequence       — 字段值递增/递减
+#     - type: conditional    — 条件约束
+#     - type: combinations   — 组合白名单（allow 列表）
+#     - type: validate       — CEL/AST 表达式（可选 cel-python）
 #
 #   与传统 group_count 的区别：
 #     - group_count: 滑动窗口，检查物理连续的组

@@ -347,17 +347,22 @@ class TestAssociateBy(unittest.TestCase):
                             {"src2": "opSch.outBufId", "src3": "opSch.inBufId"},
                         ],
                     },
-                    "only_allow_combinations": [
+                    "rules": [
                         {
-                            "src1": {"opSch.powerLevel": "15"},
-                            "src2": {"opSch.powerLevel": "10"},
-                            "src3": {"opSch.powerLevel": "5"},
-                        },
-                        {
-                            "src1": {"opSch.powerLevel": "10"},
-                            "src2": {"opSch.powerLevel": "10"},
-                            "src3": {"opSch.powerLevel": "5"},
-                        },
+                            "type": "combinations",
+                            "allow": [
+                                {
+                                    "src1": {"opSch.powerLevel": "15"},
+                                    "src2": {"opSch.powerLevel": "10"},
+                                    "src3": {"opSch.powerLevel": "5"},
+                                },
+                                {
+                                    "src1": {"opSch.powerLevel": "10"},
+                                    "src2": {"opSch.powerLevel": "10"},
+                                    "src3": {"opSch.powerLevel": "5"},
+                                },
+                            ],
+                        }
                     ],
                 }
             ],
@@ -487,8 +492,9 @@ class TestAssociateBy(unittest.TestCase):
                             {"src1": "opSch.channelId", "src2": "opSch.channelId"}
                         ],
                     },
-                    "validate": [
+                    "rules": [
                         {
+                            "type": "validate",
                             "expr": "src2.opSch.bufSize >= src1.opSch.dataRate * 2",
                             "message": "缓冲区不足",
                         }
@@ -527,8 +533,9 @@ class TestAssociateBy(unittest.TestCase):
                             {"src1": "opSch.channelId", "src2": "opSch.channelId"}
                         ],
                     },
-                    "validate": [
+                    "rules": [
                         {
+                            "type": "validate",
                             "expr": "src2.opSch.bufSize >= src1.opSch.dataRate * 2",
                             "message": "缓冲区必须≥数据速率的2倍",
                         }
