@@ -45,6 +45,18 @@ versions:
       - "字段名格式变更：必须使用前缀格式（如 opSch.powerLevel），旧格式不兼容"
     deprecated: false
 
+  - version: "1.4.0"
+    date: "2024-02-10"
+    file: "v1.4.0_20240210.yaml"
+    description: "新增 associate_by 关联约束：通过角色（src1/src2/src3）匹配非连续配置组，支持跨算子约束检查"
+    features:
+      - "associate_by 角色式关联：通过 where 条件识别 src1/src2/src3 角色"
+      - "links 异构关联：支持同字段、跨字段、多字段联合匹配"
+      - "支持线性链、扇入、扇出等拓扑结构"
+      - "关联约束复用所有现有规则类型（same_value/sequence/conditional/combinations）"
+      - "validate 表达式：支持 CEL 或简单 Python 表达式进行复杂数值约束"
+    deprecated: false
+
 # 版本命名规范:
 # - 格式: vMAJOR.MINOR.PATCH_YYYYMMDD.yaml
 # - MAJOR: 重大变更（不兼容的API更改）

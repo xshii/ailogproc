@@ -1,0 +1,195 @@
+# 配置约束规则 v1.4.0
+# 创建日期: 2024-02-10
+# 描述: 新增关联约束（associate_by），支持非连续组通过角色匹配检查
+
+version: "1.4.0"
+date: "2024-02-10"
+description: "新增 associate_by 关联约束，支持 src1/src2/src3 角色式非连续组匹配"
+author: "Team"
+changelog:
+  - "新增 associate_by 关联约束，通过角色（src1/src2/src3）匹配非连续配置组"
+  - "支持 where 条件识别角色、links 定义关联字段"
+  - "支持同字段匹配和跨字段异构匹配"
+  - "支持 CEL 表达式（validate）用于复杂约束场景"
+  - "保留所有 v1.3.0 功能"
+
+# ==================== 单组约束（继承 v1.3.0） ====================
+
+single_constraints:
+  - name: "系统模式1下的参数限制"
+    description: >
+      当系统处于模式1时，限制调试级别和功率模式的取值范围，
+      并禁止开启危险标志位，防止在该模式下出现不安全的配置组合
+    when:
+      opSch.systemMode: "1"
+    only_allow:
+      opSch.debugLevel: ["0", "1", "2", "3"]
+      opSch.powerMode: ["low", "medium", "high"]
+    forbid:
+      opSch.dangerousFlag: ["1", "true"]
+
+  - name: "高级调试模式的生产配置禁止"
+    description: >
+      当调试级别为最高级(3)且系统处于模式2时，
+      禁止启用生产模式，避免调试配置与生产配置混用导致异常
+    when:
+      opSch.debugLevel: "3"
+      opSch.systemMode: "2"
+    forbid:
+      opSch.productionMode: ["1", "enabled"]
+
+# ==================== 传统多组约束（滑动窗口，继承 v1.3.0） ====================
+
+multi_constraints:
+  - name: "相邻配置组系统模式一致性"
+    description: >
+      连续两个配置组的系统模式必须相同，
+      防止在连续操作中出现模式突变导致系统状态不连续
+    group_count: 2
+    rules:
+      - type: "same_value"
+        field: "opSch.systemMode"
+
+  # ==================== 关联约束（v1.4.0 新增） ====================
+
+  # --- 示例1: 两算子关联（同字段匹配） ---
+  - name: "DMA与计算算子通道一致性"
+    description: >
+      DMA 算子与计算算子通过 channelId 关联，
+      关联后两者的 systemMode 必须一致，防止同一通道上模式冲突
+    associate_by:
+      src1:
+        where: { opSch.opType: "dma" }
+      src2:
+        where: { opSch.opType: "compute" }
+      links:
+        - { src1: "opSch.channelId", src2: "opSch.channelId" }
+    rules:
+      - type: "same_value"
+        field: "opSch.systemMode"
+
+  # --- 示例2: 两算子关联（跨字段匹配） ---
+  - name: "生产者到消费者功率约束"
+    description: >
+      生产者算子的 outputPort 关联消费者算子的 inputPort，
+      消费者的功率等级不能高于生产者，防止下游功率过载
+    associate_by:
+      src1:
+        where: { opSch.opType: "producer" }
+      src2:
+        where: { opSch.opType: "consumer" }
+      links:
+        - { src1: "opSch.outputPort", src2: "opSch.inputPort" }
+    rules:
+      - type: "conditional"
+        when_group: "src1"
+        when_field: "opSch.powerLevel"
+        when_value: "5"
+        then_group: "src2"
+        then_field: "opSch.powerLevel"
+        only_allow: ["5"]
+
+  # --- 示例3: 三算子线性链（异构关联） ---
+  - name: "三级流水线功率递减"
+    description: >
+      DMA→计算→输出三级流水线中，功率等级必须逐级递减。
+      DMA 与计算通过 channelId 关联，计算与输出通过 bufId 关联
+    associate_by:
+      src1:
+        where: { opSch.opType: "dma" }
+      src2:
+        where: { opSch.opType: "compute" }
+      src3:
+        where: { opSch.opType: "output" }
+      links:
+        # src1→src2: 同字段匹配
+        - { src1: "opSch.channelId", src2: "opSch.channelId" }
+        # src2→src3: 跨字段匹配
+        - { src2: "opSch.outBufId", src3: "opSch.inBufId" }
+    rules:
+      - type: "sequence"
+        groups: ["src1", "src2", "src3"]
+        field: "opSch.powerLevel"
+        order: "decreasing"
+
+  # --- 示例4: 三算子组合白名单 ---
+  - name: "三级流水线功率切换白名单"
+    description: >
+      三级流水线中各级功率等级只允许指定的组合，
+      防止出现不协调的功率配置导致系统不稳定
+    associate_by:
+      src1:
+        where: { opSch.opType: "dma" }
+      src2:
+        where: { opSch.opType: "compute" }
+      src3:
+        where: { opSch.opType: "output" }
+      links:
+        - { src1: "opSch.channelId", src2: "opSch.channelId" }
+        - { src2: "opSch.outBufId", src3: "opSch.inBufId" }
+    only_allow_combinations:
+      - src1: { opSch.powerLevel: "15" }
+        src2: { opSch.powerLevel: "10" }
+        src3: { opSch.powerLevel: "5" }
+      - src1: { opSch.powerLevel: "10" }
+        src2: { opSch.powerLevel: "10" }
+        src3: { opSch.powerLevel: "5" }
+      - src1: { opSch.powerLevel: "10" }
+        src2: { opSch.powerLevel: "5" }
+        src3: { opSch.powerLevel: "5" }
+
+  # --- 示例5: CEL 表达式约束 ---
+  - name: "缓冲区大小与数据速率匹配"
+    description: >
+      计算算子的缓冲区大小必须≥DMA算子数据速率的2倍，
+      防止数据溢出。使用 CEL 表达式进行复杂数值运算
+    associate_by:
+      src1:
+        where: { opSch.opType: "dma" }
+      src2:
+        where: { opSch.opType: "compute" }
+      links:
+        - { src1: "opSch.channelId", src2: "opSch.channelId" }
+    validate:
+      - expr: "src2.opSch.bufSize >= src1.opSch.dataRate * 2"
+        message: "计算算子缓冲区大小必须≥DMA数据速率的2倍"
+
+  # --- 示例6: 扇出拓扑（src1 分别关联 src2 和 src3） ---
+  - name: "调度器到双工作者功率约束"
+    description: >
+      调度器算子分发任务给两个工作者算子，
+      两个工作者的功率模式必须与调度器一致
+    associate_by:
+      src1:
+        where: { opSch.opType: "scheduler" }
+      src2:
+        where: { opSch.opType: "workerA" }
+      src3:
+        where: { opSch.opType: "workerB" }
+      links:
+        - { src1: "opSch.groupId", src2: "opSch.groupId" }
+        - { src1: "opSch.groupId", src3: "opSch.groupId" }
+    rules:
+      - type: "same_value"
+        groups: ["src1", "src2", "src3"]
+        field: "opSch.powerMode"
+
+# ==================== 说明 ====================
+
+# 关联约束（v1.4.0 新增）：
+#   通过 associate_by 定义角色和关联方式，支持非连续组的约束检查
+#
+#   associate_by:
+#     src1/src2/src3:  角色定义（最多3个）
+#       where:         角色识别条件（字段值匹配）
+#     links:           关联条件列表
+#       - { src1: "field_a", src2: "field_b" }  # src1.field_a == src2.field_b
+#
+#   支持的约束类型（与传统多组约束相同）：
+#     - same_value, sequence, conditional
+#     - only_allow_combinations（使用角色名代替 group0/group1）
+#     - validate: CEL 表达式（可选，需安装 cel-python）
+#
+#   与传统 group_count 的区别：
+#     - group_count: 滑动窗口，检查物理连续的组
+#     - associate_by: 角色匹配，检查逻辑关联的非连续组
